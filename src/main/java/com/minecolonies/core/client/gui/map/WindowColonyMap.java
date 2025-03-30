@@ -4,6 +4,7 @@ import com.ldtteam.blockui.BOScreen;
 import com.ldtteam.blockui.Pane;
 import com.ldtteam.blockui.PaneBuilders;
 import com.ldtteam.blockui.controls.*;
+import com.ldtteam.blockui.util.resloc.OutOfJarResourceLocation;
 import com.ldtteam.blockui.views.Box;
 import com.ldtteam.blockui.views.View;
 import com.ldtteam.blockui.views.ZoomDragView;
@@ -28,6 +29,7 @@ import com.minecolonies.core.network.messages.server.colony.OpenInventoryMessage
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -263,17 +265,28 @@ public class WindowColonyMap extends AbstractWindowSkeleton
                         {
                             continue;
                         }
-                        playerImage = new Image();
-                        playerImage.setID(player.getStringUUID());
-                        playerImage.setSize(16,16);
-                        playerImage.setImage(resourceLocation, 8,8,8,8);
-                        playerImage.show();
-                        dragView.addChild(playerImage);
-                        PaneBuilders.tooltipBuilder().hoverPane(playerImage)
-                            .append(Component.literal(player.getDisplayName().getString()))
-                            .build();
+
+
+                        OutOfJarResourceLocation.ofMinecraftSkin(Minecraft.getInstance(), player.getGameProfile(), PlayerSkin::texture)
+                            .thenAccept(resLoc ->
+                            {
+                                if (resLoc != null)
+                                {
+                                    Image localPlayerImage = new Image();
+                                    localPlayerImage.setID(player.getStringUUID());
+                                    localPlayerImage.setSize(16,16);
+                                    localPlayerImage.setImage(resLoc, 8,8,8,8);
+                                    dragView.addChild(localPlayerImage);
+                                    PaneBuilders.tooltipBuilder().hoverPane(localPlayerImage)
+                                        .append(Component.literal(player.getDisplayName().getString()))
+                                        .build();
+                                }
+                            });
                     }
-                    putPaneCenterAtWorldPos(playerImage, player.blockPosition());
+                    else
+                    {
+                        putPaneCenterAtWorldPos(playerImage, player.blockPosition());
+                    }
                 }
             }
 
