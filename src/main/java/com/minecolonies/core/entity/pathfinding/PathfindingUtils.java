@@ -199,8 +199,10 @@ public class PathfindingUtils
      */
     private static boolean canStandInSolidBlock(final BlockState state)
     {
-        return state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock || (state.getBlock() instanceof PanelBlock && state.getValue(PanelBlock.OPEN))
-            || !state.getBlock().hasCollision;
+        return state.getBlock() instanceof DoorBlock
+            || state.getBlock() instanceof TrapDoorBlock
+            || (state.getBlock() instanceof PanelBlock && state.getValue(PanelBlock.OPEN))
+            || !state.getBlock().hasCollision
             || state.getBlock() instanceof CarpetBlock
             || state.getBlock() instanceof FloatingCarpetBlock;
     }
