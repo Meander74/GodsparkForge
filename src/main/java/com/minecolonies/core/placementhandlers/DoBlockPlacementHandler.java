@@ -105,7 +105,7 @@ public class DoBlockPlacementHandler implements IPlacementHandler
 
         if (!WorldUtil.setBlockState(world, pos, placementState, Constants.UPDATE_FLAG))
         {
-                return ActionProcessingResult.PASS;
+            return ActionProcessingResult.PASS;
         }
 
         if (tileEntityData != null)
