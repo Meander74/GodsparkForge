@@ -7,6 +7,7 @@ import com.minecolonies.api.research.IGlobalResearchTree;
 import com.minecolonies.api.research.ILocalResearch;
 import com.minecolonies.api.util.MathUtils;
 import com.minecolonies.api.util.MessageUtils;
+import com.minecolonies.api.util.StatsUtil;
 import com.minecolonies.api.util.NBTUtils;
 import com.minecolonies.core.colony.buildings.AbstractBuilding;
 import com.minecolonies.core.colony.buildings.modules.WorkerBuildingModule;
@@ -25,13 +26,13 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static com.minecolonies.api.util.constant.NbtTagConstants.TAG_BOOKCASES;
 import static com.minecolonies.api.util.constant.NbtTagConstants.TAG_POS;
 import static com.minecolonies.api.util.constant.TranslationConstants.MESSAGE_RESEARCHERS_MORE_KNOWLEDGE;
 import static com.minecolonies.api.util.constant.TranslationConstants.RESEARCH_CONCLUDED;
+import static com.minecolonies.api.util.constant.StatisticsConstants.RESEARCH_COMPLETED;
 
 /**
  * Creates a new building for the university.
@@ -166,6 +167,7 @@ public class BuildingUniversity extends AbstractBuilding
             citizen.applyResearchEffects();
         }
 
+        StatsUtil.trackStat(this, RESEARCH_COMPLETED, 1);
         final MutableComponent message = Component.translatableEscape(RESEARCH_CONCLUDED + ThreadLocalRandom.current().nextInt(3),
           MutableComponent.create(IGlobalResearchTree.getInstance().getResearch(research.getBranch(), research.getId()).getName()));
 
