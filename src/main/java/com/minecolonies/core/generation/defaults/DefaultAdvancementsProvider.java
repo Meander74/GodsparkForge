@@ -532,18 +532,18 @@ public class DefaultAdvancementsProvider extends AdvancementProvider
     @NotNull
     private static Criterion<PlaceStructureTriggerInstance> placeStructure(@NotNull final BuildingEntry building)
     {
-        return PlaceStructureTriggerInstance.placeStructure(building.getBuildingBlock().getBlueprintName());
+        return PlaceStructureTriggerInstance.placeStructure(building.getRegistryName().getPath());
     }
 
     @NotNull
     private static Criterion<CreateBuildRequestTriggerInstance> createBuildRequest(@NotNull final BuildingEntry building, final int level)
     {
-        return CreateBuildRequestTriggerInstance.createBuildRequest(building.getBuildingBlock().getBlueprintName(), level);
+        return CreateBuildRequestTriggerInstance.createBuildRequest(building.getRegistryName().getPath(), level);
     }
 
     @NotNull
     private static Criterion<CompleteBuildRequestTriggerInstance> completeBuildRequest(@NotNull final BuildingEntry building, final int level)
     {
-        return CompleteBuildRequestTriggerInstance.completeBuildRequest(building.getBuildingBlock().getBlueprintName(), level);
+        return CompleteBuildRequestTriggerInstance.completeBuildRequest(building.getRegistryName().getPath(), level);
     }
 }

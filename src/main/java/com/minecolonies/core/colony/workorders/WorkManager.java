@@ -302,7 +302,7 @@ public class WorkManager implements IWorkManager
                 if (building != null)
                 {
                     AdvancementUtils.TriggerAdvancementPlayersForColony(colony,
-                            player -> AdvancementTriggers.CREATE_BUILD_REQUEST.get().trigger(player, building.getBuildingType().getBuildingBlock().getBlueprintName(), level));
+                            player -> AdvancementTriggers.CREATE_BUILD_REQUEST.get().trigger(player, building.getSchematicName(), level));
                 }
             }
             else if (order instanceof WorkOrderDecoration)

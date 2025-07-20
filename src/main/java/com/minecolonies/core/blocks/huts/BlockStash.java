@@ -1,6 +1,7 @@
 package com.minecolonies.core.blocks.huts;
 
 import com.minecolonies.api.blocks.AbstractBlockHut;
+import com.minecolonies.api.blocks.AbstractColonyBlock;
 import com.minecolonies.api.blocks.interfaces.IRSComponentBlock;
 import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.api.colony.buildings.ModBuildings;
@@ -16,7 +17,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.BlockHitResult;
@@ -30,9 +30,8 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Hut for the Stash. No different from {@link AbstractBlockHut}
  */
-public class BlockStash extends AbstractBlockHut<BlockStash> implements IRSComponentBlock
+public class BlockStash extends AbstractColonyBlock<BlockStash> implements IRSComponentBlock
 {
-
     private static final VoxelShape SHAPE_NORTH = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 16.0D, 8.0D);
     private static final VoxelShape SHAPE_EAST  = Block.box(8.0D, 0.0D, 0.0D, 16.0D, 16.0D, 16.0D);
     private static final VoxelShape SHAPE_SOUTH = Block.box(0.0D, 0.0D, 8.0D, 16.0D, 16.0D, 16.0D);

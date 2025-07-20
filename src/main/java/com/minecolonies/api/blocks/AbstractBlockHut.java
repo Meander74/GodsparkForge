@@ -72,16 +72,11 @@ import static com.minecolonies.api.util.constant.BuildingConstants.DEACTIVATED;
 import static com.minecolonies.api.util.constant.TranslationConstants.*;
 
 /**
- * Abstract class for all minecolonies blocks.
- * <p>
- * The method {@link AbstractBlockHut#getName()} is abstract.
- * <p>
- * All AbstractBlockHut[something] should extend this class.
+ * Base class for all Minecolonies Hut Blocks. Hut Blocks are the base blocks for Minecolonies buildings.
+ * Extending this class enables all the blueprint functionalities.
  */
 @SuppressWarnings("PMD.ExcessiveImports")
-public abstract class AbstractBlockHut<B extends AbstractBlockHut<B>> extends AbstractBlockMinecolonies<B> implements IBuilderUndestroyable,
-                                                                                                                        IAnchorBlock,
-                                                                                                                        ITickableBlockMinecolonies,
+public abstract class AbstractBlockHut<B extends AbstractBlockHut<B>> extends AbstractColonyBlock<B> implements IAnchorBlock,
                                                                                                                         INamedBlueprintAnchorBlock,
                                                                                                                         ILeveledBlueprintAnchorBlock,
                                                                                                                         IRequirementsBlueprintAnchorBlock,
@@ -91,63 +86,13 @@ public abstract class AbstractBlockHut<B extends AbstractBlockHut<B>> extends Ab
 
 {
     /**
-     * Hardness factor of the pvp mode.
-     */
-    private static final int HARDNESS_PVP_FACTOR = 4;
-
-    /**
-     * The direction the block is facing.
-     */
-    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
-
-    /**
-     * The default hardness.
-     */
-    public static final float HARDNESS = 10F;
-
-    /**
-     * The default resistance (against explosions).
-     */
-    public static final float RESISTANCE = Float.POSITIVE_INFINITY;
-
-    /**
-     * Smaller shape.
-     */
-    private static final VoxelShape SHAPE = Shapes.box(0.1, 0.1, 0.1, 0.9, 0.9, 0.9);
-
-    /**
-     * The hut's lower-case building-registry-compatible name.
-     */
-    private final String name;
-
-    /**
-     * The timepoint of the last chat warning message
-     */
-    private long lastBreakTickWarn = 0;
-
-    /**
      * Constructor for a hut block.
      * <p>
      * Registers the block, sets the creative tab, as well as the resistance and the hardness.
      */
     public AbstractBlockHut()
     {
-        super(Properties.of().mapColor(MapColor.WOOD).sound(SoundType.WOOD).strength(HARDNESS, RESISTANCE).noOcclusion());
-        this.registerDefaultState(this.defaultBlockState().setValue(FACING, Direction.NORTH));
-        this.name = getHutName();
-    }
-
-    @Override
-    public float getDestroyProgress(final BlockState state, @NotNull final Player player, @NotNull final BlockGetter world, @NotNull final BlockPos pos)
-    {
-        final IBuilding building = IColonyManager.getInstance().getBuilding(player.level(), pos);
-        if (building != null && !building.getChildren().isEmpty() && (player.level().getGameTime() - lastBreakTickWarn) < 100)
-        {
-            lastBreakTickWarn = player.level().getGameTime();
-            MessageUtils.format(HUT_BREAK_WARNING_CHILD_BUILDINGS).sendTo(player);
-        }
-
-        return (MinecoloniesAPIProxy.getInstance().getConfig().getServer().pvp_mode.get() ? 1 / (HARDNESS * HARDNESS_PVP_FACTOR) : 1 / HARDNESS) / 30;
+        super();
     }
 
     /**
@@ -159,152 +104,7 @@ public abstract class AbstractBlockHut<B extends AbstractBlockHut<B>> extends Ab
      */
     public AbstractBlockHut(final Properties properties)
     {
-        super(properties.noOcclusion());
-        this.registerDefaultState(this.defaultBlockState().setValue(FACING, Direction.NORTH));
-        this.name = getHutName();
-    }
-
-    /**
-     * Method to return the name of the block.
-     *
-     * @return Name of the block.
-     */
-    public abstract String getHutName();
-
-    @Nullable
-    @Override
-    public BlockEntity newBlockEntity(@NotNull final BlockPos blockPos, @NotNull final BlockState blockState)
-    {
-        final TileEntityColonyBuilding building = (TileEntityColonyBuilding) MinecoloniesTileEntities.BUILDING.get().create(blockPos, blockState);
-        building.registryName = this.getBuildingEntry().getRegistryName();
-        return building;
-    }
-
-    /**
-     * Method to get the building registry entry.
-     *
-     * @return The building entry.
-     */
-    public abstract BuildingEntry getBuildingEntry();
-
-    @NotNull
-    @Override
-    public VoxelShape getShape(final BlockState state, final BlockGetter worldIn, final BlockPos pos, final CollisionContext context)
-    {
-        return SHAPE;
-    }
-
-    @NotNull
-    @Override
-    public ItemInteractionResult useItemOn(
-      final ItemStack stack,
-      final BlockState state,
-      final Level worldIn,
-      final BlockPos pos,
-      final Player player,
-      final InteractionHand hand,
-      final BlockHitResult ray)
-    {
-       /*
-        If the world is client, open the gui of the building
-         */
-        if (worldIn.isClientSide)
-        {
-            if (hand == InteractionHand.OFF_HAND)
-            {
-                return ItemInteractionResult.FAIL;
-            }
-
-            @Nullable final IBuildingView building = IColonyManager.getInstance().getBuildingView(worldIn.dimension(), pos);
-            final LevelChunk chunk = worldIn.getChunkAt(pos);
-            final BlockEntity entity = worldIn.getBlockEntity(pos);
-            if (entity instanceof final TileEntityColonyBuilding te && te.getPositionedTags().containsKey(BlockPos.ZERO) && te.getPositionedTags().get(BlockPos.ZERO).contains(DEACTIVATED))
-            {
-                if (building == null && ColonyUtils.getOwningColony(chunk) == 0)
-                {
-                    MessageUtils.format(MISSING_COLONY).sendTo(player);
-                    return ItemInteractionResult.FAIL;
-                }
-
-                if (building == null && ColonyUtils.getAllClaimingBuildings(chunk).values().stream().flatMap(Collection::stream).noneMatch(p -> p.equals(pos)))
-                {
-                    IColonyManager.getInstance().openReactivationWindow(pos);
-                    return ItemInteractionResult.SUCCESS;
-                }
-            }
-
-            if (building == null)
-            {
-                MessageUtils.format(HUT_BLOCK_MISSING_BUILDING).sendTo(player);
-                return ItemInteractionResult.FAIL;
-            }
-
-            if (building.getColony() == null)
-            {
-                MessageUtils.format(HUT_BLOCK_MISSING_COLONY).sendTo(player);
-                return ItemInteractionResult.FAIL;
-            }
-
-            if (!building.getColony().getPermissions().hasPermission(player, Action.ACCESS_HUTS))
-            {
-                MessageUtils.format(PERMISSION_DENIED).sendTo(player);
-                return ItemInteractionResult.FAIL;
-            }
-
-            building.openGui(player.isShiftKeyDown());
-        }
-        return ItemInteractionResult.SUCCESS;
-    }
-
-    @Nullable
-    @Override
-    public BlockState getStateForPlacement(final BlockPlaceContext context)
-    {
-        @NotNull final Direction facing = (context.getPlayer() == null) ? Direction.NORTH : Direction.fromYRot(context.getPlayer().getYRot());
-        return this.defaultBlockState().setValue(FACING, facing);
-    }
-
-    @NotNull
-    @Override
-    public BlockState rotate(final BlockState state, final Rotation rot)
-    {
-        return state.setValue(FACING, rot.rotate(state.getValue(FACING)));
-    }
-
-    @Override
-    public void setPlacedBy(@NotNull final Level worldIn, @NotNull final BlockPos pos, final BlockState state, final LivingEntity placer, final ItemStack stack)
-    {
-        super.setPlacedBy(worldIn, pos, state, placer, stack);
-
-        /*
-        Only work on server side
-        */
-        if (worldIn.isClientSide)
-        {
-            return;
-        }
-
-        final BlockEntity tileEntity = worldIn.getBlockEntity(pos);
-        if (tileEntity instanceof TileEntityColonyBuilding)
-        {
-            @NotNull final TileEntityColonyBuilding hut = (TileEntityColonyBuilding) tileEntity;
-            if (hut.getBuildingName() != getBuildingEntry().getRegistryName())
-            {
-                hut.registryName = getBuildingEntry().getRegistryName();
-            }
-            @Nullable final IColony colony = IColonyManager.getInstance().getColonyByPosFromWorld(worldIn, hut.getPosition());
-
-            if (colony != null)
-            {
-                colony.getBuildingManager().addNewBuilding(hut, worldIn);
-            }
-        }
-    }
-
-    @Override
-    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder)
-    {
-        builder.add(FACING);
+        super(properties);
     }
 
     /**
@@ -339,22 +139,6 @@ public abstract class AbstractBlockHut<B extends AbstractBlockHut<B>> extends Ab
         }
 
         setPlacedBy(worldIn, pos, state, placer, stack);
-    }
-
-    /**
-     * Get the registry name frm the blck hut.
-     * @return the key.
-     */
-    public ResourceLocation getRegistryName()
-    {
-        return new ResourceLocation(Constants.MOD_ID, getHutName());
-    }
-
-    @Override
-    public B registerBlock(final Registry<Block> registry)
-    {
-        Registry.register(registry, getRegistryName(), this);
-        return (B) this;
     }
 
     @Override
