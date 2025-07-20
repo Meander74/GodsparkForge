@@ -1,30 +1,35 @@
 package com.minecolonies.core.client.gui.containers;
 
 import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.colony.requestsystem.request.IRequest;
+import com.minecolonies.api.colony.requestsystem.requestable.IConcreteDeliverable;
+import com.minecolonies.api.compatibility.Compatibility;
 import com.minecolonies.api.crafting.ItemStorage;
 import com.minecolonies.api.crafting.ModCraftingTypes;
 import com.minecolonies.api.inventory.container.ContainerCrafting;
 import com.minecolonies.api.util.ItemStackUtils;
+import com.minecolonies.core.client.gui.modules.WindowSelectRequest;
 import com.minecolonies.core.colony.buildings.moduleviews.CraftingModuleView;
 import com.minecolonies.core.colony.buildings.views.AbstractBuildingView;
 import com.minecolonies.core.network.messages.server.SwitchRecipeCraftingTeachingMessage;
 import com.minecolonies.core.network.messages.server.colony.building.worker.AddRemoveRecipeMessage;
+import com.minecolonies.core.util.DomumOrnamentumUtils;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ImageButton;
-import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 import static com.minecolonies.api.util.constant.Constants.MOD_ID;
 import static com.minecolonies.api.util.constant.TranslationConstants.WARNING_MAXIMUM_NUMBER_RECIPES;
+import static com.minecolonies.api.util.constant.WindowConstants.*;
 import static com.minecolonies.api.util.constant.translation.BaseGameTranslationConstants.BASE_GUI_DONE;
 
 /**
@@ -35,10 +40,6 @@ public class WindowCrafting extends AbstractContainerScreen<ContainerCrafting>
     private static final ResourceLocation CRAFTING_TABLE_GUI_TEXTURES = new ResourceLocation(MOD_ID, "textures/gui/crafting2x2.png");
 
     private static final ResourceLocation CRAFTING_TABLE_GUI_TEXTURES3X3 = new ResourceLocation(MOD_ID, "textures/gui/crafting3x3.png");
-
-    private static final WidgetSprites CRAFTING_SWITCH = new WidgetSprites(
-            new ResourceLocation(MOD_ID, "craftingswitch"),
-            new ResourceLocation(MOD_ID, "craftingswitch_hover"));
 
     /**
      * X offset of the button.
@@ -61,16 +62,6 @@ public class WindowCrafting extends AbstractContainerScreen<ContainerCrafting>
     private static final int BUTTON_HEIGHT = 20;
 
     /**
-     * Switch button width.
-     */
-    private static final int SWITCH_WIDTH = 20;
-
-    /**
-     * Switch button height.
-     */
-    private static final int SWITCH_HEIGHT = 18;
-
-    /**
      * Switch button horizontal location.
      */
     private static final int SWITCH_X_OFFSET = 148;
@@ -78,7 +69,13 @@ public class WindowCrafting extends AbstractContainerScreen<ContainerCrafting>
     /**
      * Switch button vertical location.
      */
-    private static final int SWITCH_Y_OFFSET = 43 - (SWITCH_HEIGHT / 2);
+    private static final int SWITCH_Y_OFFSET = 43 - (CRAFTING_SWITCH_SIZE.height / 2);
+
+    /**
+     * Request list button location.
+     */
+    private static final int REQUEST_X_OFFSET = 100 - (CRAFTING_SWITCH_SIZE.width / 2);
+    private static final int REQUEST_Y_OFFSET = 70 - CRAFTING_SWITCH_SIZE.height;
 
     /**
      * Color of the gui description.
@@ -125,6 +122,8 @@ public class WindowCrafting extends AbstractContainerScreen<ContainerCrafting>
      */
     private ImageButton switchButton;
 
+    private final Map<IRequest<?>, List<ItemStack>> requestables = new HashMap<>();
+
     /**
      * Create a crafting gui window.
      *
@@ -169,13 +168,19 @@ public class WindowCrafting extends AbstractContainerScreen<ContainerCrafting>
             doneButton.active = false;
         }
 
-        this.switchButton = new ImageButton(leftPos + SWITCH_X_OFFSET, topPos + SWITCH_Y_OFFSET,
-                SWITCH_WIDTH, SWITCH_HEIGHT, CRAFTING_SWITCH, btn ->
-        {
-            new SwitchRecipeCraftingTeachingMessage().sendToServer();
-        });
+        this.switchButton = new ImageButton(leftPos + SWITCH_X_OFFSET, topPos + SWITCH_Y_OFFSET, CRAFTING_SWITCH_SIZE.width, CRAFTING_SWITCH_SIZE.height,
+                CRAFTING_SWITCH, btn -> new SwitchRecipeCraftingTeachingMessage().sendToServer());
         this.switchButton.visible = false;
         this.addRenderableWidget(this.switchButton);
+
+        final ImageButton requestsButton = new ImageButton(leftPos + REQUEST_X_OFFSET, topPos + REQUEST_Y_OFFSET, CRAFTING_SWITCH_SIZE.width, CRAFTING_SWITCH_SIZE.height,
+                CRAFTING_LIST, btn ->
+        {
+            requestables.clear();
+            new WindowSelectRequest(this.building, this::matchingRequest, this::reopenWithRequest).open();
+        });
+        requestsButton.visible = Compatibility.jeiProxy.isLoaded();
+        this.addRenderableWidget(requestsButton);
     }
 
     @Override
@@ -184,6 +189,30 @@ public class WindowCrafting extends AbstractContainerScreen<ContainerCrafting>
         super.containerTick();
 
         this.switchButton.visible = this.menu.canSwitchRecipes();
+    }
+
+    private boolean matchingRequest(@NotNull final IRequest<?> request)
+    {
+        if (!DomumOrnamentumUtils.getRequestedStack(request).isEmpty()) return false;
+
+        if (request.getRequest() instanceof IConcreteDeliverable deliverable)
+        {
+            // todo filter?
+            requestables.put(request, deliverable.getRequestedItems());
+            return true;
+        }
+        return false;
+    }
+
+    private void reopenWithRequest(@Nullable final IRequest<?> request)
+    {
+        minecraft.setScreen(this);
+
+        final List<ItemStack> stacks = requestables.getOrDefault(request, new ArrayList<>());
+        if (!stacks.isEmpty())
+        {
+            Compatibility.jeiProxy.showRecipes(stacks);
+        }
     }
 
     private void onDoneClicked(final Button button)

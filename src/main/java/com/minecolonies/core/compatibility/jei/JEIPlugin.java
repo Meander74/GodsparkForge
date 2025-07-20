@@ -7,6 +7,8 @@ import com.minecolonies.api.colony.buildings.registry.BuildingEntry;
 import com.minecolonies.api.colony.jobs.IJob;
 import com.minecolonies.api.colony.jobs.ModJobs;
 import com.minecolonies.api.colony.jobs.registry.JobEntry;
+import com.minecolonies.api.compatibility.Compatibility;
+import com.minecolonies.api.compatibility.IJeiProxy;
 import com.minecolonies.api.crafting.IGenericRecipe;
 import com.minecolonies.api.crafting.registry.CraftingType;
 import com.minecolonies.api.eventbus.events.CustomRecipesReloadedEvent;
@@ -18,10 +20,14 @@ import com.minecolonies.core.colony.crafting.RecipeAnalyzer;
 import com.minecolonies.core.compatibility.jei.transfer.*;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.constants.RecipeTypes;
+import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.helpers.IJeiHelpers;
 import mezz.jei.api.helpers.IModIdHelper;
+import mezz.jei.api.recipe.IFocus;
+import mezz.jei.api.recipe.IFocusFactory;
 import mezz.jei.api.recipe.IRecipeManager;
+import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.registration.*;
 import mezz.jei.api.runtime.IJeiRuntime;
@@ -30,6 +36,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -42,6 +49,36 @@ public class JEIPlugin implements IModPlugin
 {
     @Nullable IJeiRuntime jei;
     boolean recipesLoaded;
+
+    public JEIPlugin()
+    {
+        Compatibility.jeiProxy = new IJeiProxy()
+        {
+            @Override
+            public boolean isLoaded()
+            {
+                return true;
+            }
+
+            @Override
+            public boolean showRecipes(final Collection<ItemStack> stacks)
+            {
+                final IJeiRuntime jei = JEIPlugin.this.jei;
+
+                if (jei != null && !stacks.isEmpty())
+                {
+                    final IFocusFactory focusFactory = jei.getJeiHelpers().getFocusFactory();
+                    final List<IFocus<?>> focuses = stacks.stream()
+                        .<IFocus<?>>map(stack -> focusFactory.createFocus(RecipeIngredientRole.OUTPUT, VanillaTypes.ITEM_STACK, stack))
+                        .toList();
+                    jei.getRecipesGui().show(focuses);
+                    return true;
+                }
+
+                return false;
+            }
+        };
+    }
 
     @NotNull
     @Override
