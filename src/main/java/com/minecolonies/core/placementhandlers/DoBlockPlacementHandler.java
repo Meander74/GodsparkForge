@@ -29,7 +29,6 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.level.block.IronBarsBlock;
-import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -42,7 +41,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import static com.ldtteam.structurize.placement.handlers.placement.PlacementHandlers.handleTileEntityPlacement;
 
@@ -172,7 +170,7 @@ public class DoBlockPlacementHandler implements IPlacementHandler
             {
                 property = null;
             }
-            itemList.add(getCorrectDOItem(property == null ? BlockUtils.getMaterializedItemStack(tileEntity, world.registryAccess()) : BlockUtils.getMaterializedItemStack(tileEntity, world.registryAccess(), property), blockState));
+            itemList.add(getCorrectDOItem(property == null ? BlockUtils.getMaterializedItemStack(tileEntity, world.registryAccess()) : BlockUtils.getMaterializedItemStack(tileEntity, world.registryAccess(), property), blockState, complete));
         }
         itemList.removeIf(ItemStackUtils::isEmpty);
         return itemList;
@@ -185,27 +183,31 @@ public class DoBlockPlacementHandler implements IPlacementHandler
      * @param blockState the blockstate in the world.
      * @return the adjusted item.
      */
-    public static ItemStack getCorrectDOItem(final ItemStack item, final BlockState blockState)
+    public static ItemStack getCorrectDOItem(final ItemStack item, final BlockState blockState, final boolean complete)
     {
         final BlockItemStateProperties properties = item.getOrDefault(DataComponents.BLOCK_STATE, BlockItemStateProperties.EMPTY);
         if (blockState.getBlock() instanceof TrapdoorBlock)
         {
-            properties.with(TrapdoorBlock.TYPE, TrapdoorType.FULL);
+            properties.with(TrapdoorBlock.TYPE, complete ? blockState.getValue(TrapdoorBlock.TYPE) : TrapdoorType.FULL);
         }
         else if (blockState.getBlock() instanceof FancyTrapdoorBlock)
         {
-            properties.with(FancyTrapdoorBlock.TYPE, FancyTrapdoorType.FULL);
+            properties.with(FancyTrapdoorBlock.TYPE, complete ? blockState.getValue(FancyTrapdoorBlock.TYPE) : FancyTrapdoorType.FULL);
         }
         else if (blockState.getBlock() instanceof PanelBlock)
         {
-            properties.with(TrapdoorBlock.TYPE, TrapdoorType.FULL);
+            properties.with(TrapdoorBlock.TYPE, complete ? blockState.getValue(TrapdoorBlock.TYPE) : TrapdoorType.FULL);
         }
         else if (blockState.getBlock() instanceof AbstractPostBlock<?>)
         {
-            properties.with(PostBlock.TYPE, PostType.PLAIN);
+            properties.with(PostBlock.TYPE, complete ? blockState.getValue(PostBlock.TYPE) : PostType.PLAIN);
         }
         else if (blockState.getBlock() instanceof TimberFrameBlock || blockState.getBlock() instanceof DynamicTimberFrameBlock)
         {
+            if (complete)
+            {
+                return item;
+            }
             final ItemStack tempItem = new ItemStack(com.ldtteam.domumornamentum.block.ModBlocks.getInstance().getTimberFrames().get(2));
             tempItem.applyComponents(item.getComponents());
             return tempItem;
@@ -225,7 +227,7 @@ public class DoBlockPlacementHandler implements IPlacementHandler
             for (final ItemStack item : items)
             {
                 final BlockState state = world.getBlockState(pos);
-                InventoryUtils.transferIntoNextBestSlot(getCorrectDOItem(item, state), handler.getInventory());
+                InventoryUtils.transferIntoNextBestSlot(getCorrectDOItem(item, state, false), handler.getInventory());
             }
         }
         world.removeBlock(pos, false);

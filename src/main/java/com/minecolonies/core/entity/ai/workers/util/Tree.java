@@ -754,7 +754,7 @@ public class Tree
      */
     private String logPrefix(BlockState block) 
     {
-        String path = ForgeRegistries.BLOCKS.getKey(block.getBlock()).getPath();
+        String path = BuiltInRegistries.BLOCK.getKey(block.getBlock()).getPath();
         return path.replaceFirst("(_log|_wood|_stem|_hyphae)$", "");
     }
 
