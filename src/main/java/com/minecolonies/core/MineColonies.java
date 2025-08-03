@@ -374,6 +374,7 @@ public class MineColonies
         ColonyNameStyleMessage.TYPE.register(registry);
         InteractionClose.TYPE.register(registry);
         AlterRestaurantMenuItemMessage.TYPE.register(registry);
+        TriggerConnectionEventMessage.TYPE.register(registry);
 
         //Client side only
         BlockParticleEffectMessage.TYPE.register(registry);

@@ -10,6 +10,7 @@ import com.minecolonies.api.colony.buildings.modules.ISettingsModule;
 import com.minecolonies.api.colony.buildings.registry.BuildingEntry;
 import com.minecolonies.api.colony.claim.ChunkClaimData;
 import com.minecolonies.api.colony.claim.IChunkClaimData;
+import com.minecolonies.api.colony.connections.IColonyConnectionManager;
 import com.minecolonies.api.colony.managers.interfaces.*;
 import com.minecolonies.api.colony.permissions.Action;
 import com.minecolonies.api.colony.permissions.Rank;
@@ -186,7 +187,7 @@ public class Colony implements IColony
     private final IStatisticsManager statisticManager;
 
     /**
-     * Quest manager for this colony
+     * Quest manager of the colony
      */
     private final IQuestManager questManager;
 
@@ -205,7 +206,15 @@ public class Colony implements IColony
      */
     private final IResearchManager researchManager;
 
+    /**
+     * Traveling manager of the colony.
+     */
     private final TravellingManager travellingManager = new TravellingManager(this);
+
+    /**
+     * Connection manager of the colony.
+     */
+    private final ColonyConnectionManager connectionManager = new ColonyConnectionManager(this);
 
     /**
      * The Positions which players can freely interact.
@@ -394,6 +403,7 @@ public class Colony implements IColony
         colonyStateMachine.addTransition(new TickingTransition<>(ACTIVE, this::checkDayTime, () -> ACTIVE, UPDATE_DAYTIME_INTERVAL));
         colonyStateMachine.addTransition(new TickingTransition<>(ACTIVE, this::updateWayPoints, () -> ACTIVE, CHECK_WAYPOINT_EVERY));
         colonyStateMachine.addTransition(new TickingTransition<>(ACTIVE, this::worldTickSlow, () -> ACTIVE, MAX_TICKRATE));
+        colonyStateMachine.addTransition(new TickingTransition<>(ACTIVE, () -> { connectionManager.tick(); return false; }, () -> ACTIVE, TICKS_SECOND));
         colonyStateMachine.addTransition(new TickingTransition<>(UNLOADED, this::worldTickUnloaded, () -> UNLOADED, MAX_TICKRATE));
     }
 
@@ -454,9 +464,9 @@ public class Colony implements IColony
      */
     private boolean tickTravellers()
     {
-        if (getTravelingManager() != null)
+        if (getTravellingManager() != null)
         {
-            return !getTravelingManager().onTick();
+            return !getTravellingManager().onTick();
         }
         return false;
     }
@@ -848,6 +858,11 @@ public class Colony implements IColony
         {
             this.travellingManager.deserializeNBT(provider, compound.getCompound(NbtTagConstants.TAG_TRAVELLING_DATA));
         }
+
+        if (compound.contains(NbtTagConstants.TAG_CONNECTION_MANAGER))
+        {
+            this.connectionManager.deserializeNBT(provider, compound.getCompound(NbtTagConstants.TAG_CONNECTION_MANAGER));
+        }
     }
 
     /**
@@ -959,6 +974,7 @@ public class Colony implements IColony
         compound.put(BuildingModules.TOWNHALL_SETTINGS.key, settings);
 
         compound.put(TAG_TRAVELLING_DATA, travellingManager.serializeNBT(provider));
+        compound.put(TAG_CONNECTION_MANAGER, connectionManager.serializeNBT(provider));
 
         @NotNull final ListTag claimTagList = new ListTag();
         for (final Long2ObjectMap.Entry<ChunkClaimData> chunkClaimData : claimData.long2ObjectEntrySet())
@@ -1622,9 +1638,15 @@ public class Colony implements IColony
     }
 
     @Override
-    public TravellingManager getTravelingManager()
+    public TravellingManager getTravellingManager()
     {
         return travellingManager;
+    }
+
+    @Override
+    public IColonyConnectionManager getConnectionManager()
+    {
+        return connectionManager;
     }
 
     /**

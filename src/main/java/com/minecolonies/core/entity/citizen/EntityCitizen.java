@@ -1875,7 +1875,7 @@ public class EntityCitizen extends AbstractEntityCitizen implements IThreatTable
     {
         if (citizenData != null)
         {
-            final int buildingLevel = citizenData.getHomeBuilding() == null ? 1 :  citizenData.getHomeBuilding().getBuildingLevel();
+            final int buildingLevel = citizenData.getHomeBuilding() == null ? 1 :  citizenData.getHomeBuilding().getBuildingLevelEquivalent();
             if (buildingLevel <= 2)
             {
                 citizenData.decreaseSaturation(buildingLevel / 25.0);

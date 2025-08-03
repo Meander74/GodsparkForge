@@ -25,7 +25,6 @@ import java.util.*;
 
 import static com.minecolonies.api.util.constant.TranslationConstants.COM_MINECOLONIES_COREMOD_GUI_TOWNHALL_CITIZEN_UNEMPLOYED;
 import static com.minecolonies.api.util.constant.WindowConstants.*;
-import static com.minecolonies.core.client.gui.townhall.AbstractWindowTownHall.*;
 
 /**
  * BOWindow for the hiring or firing of a worker.
@@ -377,7 +376,7 @@ public class WindowAssignCitizen extends AbstractWindowSkeleton implements Butto
 
                 if (((colony.isManualHousing() && building.getHiringMode() == HiringMode.DEFAULT) || (building.getHiringMode() == HiringMode.MANUAL)))
                 {
-                    if (citizen.getColony().getTravelingManager().isTravelling(citizen.getId()))
+                    if (citizen.getColony().getTravellingManager().isTravelling(citizen.getId()))
                     {
                         fireButton.disable();
                         PaneBuilders.tooltipBuilder().hoverPane(fireButton).build().setText(Component.translatable("com.minecolonies.coremod.gui.home.travelling"));

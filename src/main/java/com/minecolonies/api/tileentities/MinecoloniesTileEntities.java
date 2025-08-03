@@ -31,4 +31,6 @@ public class MinecoloniesTileEntities
     public static DeferredHolder<BlockEntityType<?>, BlockEntityType<TileEntityStash>> STASH;
 
     public static DeferredHolder<BlockEntityType<?>, BlockEntityType<TileEntityColonyFlag>> COLONY_FLAG;
+
+    public static DeferredHolder<BlockEntityType<?>, BlockEntityType<TileEntityColonySign>> COLONY_SIGN;
 }
