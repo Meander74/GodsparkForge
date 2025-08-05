@@ -125,6 +125,10 @@ public class RenderBipedCitizen extends MobRenderer<AbstractEntityCitizen, Citiz
                 final Matrix4f pose = matrixStack.last().pose();
 
                 VertexConsumer r = buffer.getBuffer(RenderTypes.worldEntityIcon(entityIn.getCitizenDataView().getStatusIcon()));
+                r.addVertex(pose, -5, 0, 0).setUv(0, 0);
+                r.addVertex(pose, -5, 10, 0).setUv(0, 1);
+                r.addVertex(pose, 5, 10, 0).setUv(1, 1);
+                r.addVertex(pose, 5, 0, 0).setUv(1, 0);
 
                 matrixStack.popPose();
             }
