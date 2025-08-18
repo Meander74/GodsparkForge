@@ -53,7 +53,7 @@ public class ItemLargeBottle extends Item
         }
         else if (entity instanceof final Goat goat && !entity.isBaby())
         {
-            player.playSound(goat.getMilkingSound(), 1.0F, 1.0F);
+            player.playSound((goat.isScreamingGoat() ? SoundEvents.GOAT_SCREAMING_MILK : SoundEvents.GOAT_MILK), 1.0F, 1.0F);
             if (!InventoryUtils.addItemStackToItemHandler(new PlayerMainInvWrapper(player.getInventory()), ModItems.large_milk_bottle.getDefaultInstance()))
             {
                 player.drop(ModItems.large_milk_bottle.getDefaultInstance(), false);
