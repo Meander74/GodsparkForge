@@ -2,6 +2,8 @@ package com.minecolonies.core.network.messages.server.colony;
 
 import com.ldtteam.common.network.PlayMessageType;
 import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.colony.connections.DiplomacyStatus;
 import com.minecolonies.api.colony.permissions.Action;
 import com.minecolonies.api.util.constant.Constants;
 import com.minecolonies.core.network.messages.server.AbstractColonyServerMessage;
@@ -20,22 +22,28 @@ import org.jetbrains.annotations.Nullable;
 public class TeleportToColonyMessage extends AbstractColonyServerMessage
 {
     public static final PlayMessageType<?> TYPE = PlayMessageType.forServer(Constants.MOD_ID, "teleport_to_colony", TeleportToColonyMessage::new);
+    /**
+     * Origin colony id.
+     */
+    private int originColonyId;
 
     /**
-     * Position to teleport to.
+     * Gatehouse pos to teleport to.
      */
     private BlockPos pos;
 
-    public TeleportToColonyMessage(final ResourceKey<Level> dimensionId, final int colonyId, final BlockPos pos)
+    public TeleportToColonyMessage(final ResourceKey<Level> dimensionId, final int colonyId, final BlockPos pos, final int originColonyId)
     {
         super(TYPE, dimensionId, colonyId);
         this.pos = pos;
+        this.originColonyId = originColonyId;
     }
 
     protected TeleportToColonyMessage(final RegistryFriendlyByteBuf buf, final PlayMessageType<?> type)
     {
         super(buf, type);
         this.pos = buf.readBlockPos();
+        this.originColonyId = buf.readInt();
     }
 
     @Nullable
@@ -50,12 +58,29 @@ public class TeleportToColonyMessage extends AbstractColonyServerMessage
     {
         super.toBytes(buf);
         buf.writeBlockPos(pos);
+        buf.writeInt(originColonyId);
     }
 
     @Override
     protected void onExecute(final IPayloadContext ctxIn, final ServerPlayer player, final IColony colony)
     {
-        if (colony.getPermissions().getRank(player.getUUID()) != colony.getPermissions().getRankNeutral())
+        if (player == null)
+        {
+            return;
+        }
+
+        final IColony originColony = IColonyManager.getInstance().getColonyByDimension(originColonyId, player.level().dimension());
+        if (originColony == null)
+        {
+            return;
+        }
+
+        if (originColony.getConnectionManager().getColonyDiplomacyStatus(colony.getID()) != DiplomacyStatus.ALLIES)
+        {
+            return;
+        }
+
+        if (originColony.getPermissions().hasPermission(player, Action.ACCESS_HUTS) || colony.getPermissions().hasPermission(player, Action.ACCESS_HUTS))
         {
             TeleportHelper.colonyTeleport(player, colony, pos);
         }

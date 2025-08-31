@@ -38,7 +38,7 @@ public class DefaultFletcherCraftingProvider extends CustomRecipeProvider
     protected void registerRecipes(@NotNull final Consumer<CustomRecipeBuilder> consumer)
     {
         recipe(FLETCHER, MODULE_CRAFTING, "flint")
-                .inputs(List.of(new ItemStorage(new ItemStack(Items.GRAVEL, 3))))
+                .inputs(List.of(new ItemStorage(new ItemStack(Items.GRAVEL), 3)))
                 .result(new ItemStack(Items.FLINT))
                 .build(consumer);
 

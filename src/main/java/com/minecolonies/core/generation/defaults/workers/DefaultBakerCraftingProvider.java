@@ -53,7 +53,7 @@ public class DefaultBakerCraftingProvider extends CustomRecipeProvider
           .build(consumer);
 
         recipe(BAKER, MODULE_CRAFTING, "bread_dough")
-          .inputs(List.of(new ItemStorage(new ItemStack(Items.WHEAT, 3))))
+          .inputs(List.of(new ItemStorage(new ItemStack(Items.WHEAT), 3)))
           .result(new ItemStack(ModItems.breadDough))
           .maxBuildingLevel(2)
           .showTooltip(true)

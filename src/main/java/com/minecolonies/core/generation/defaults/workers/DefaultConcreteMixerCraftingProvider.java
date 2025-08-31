@@ -41,8 +41,8 @@ public class DefaultConcreteMixerCraftingProvider extends CustomRecipeProvider
     protected void registerRecipes(@NotNull final Consumer<CustomRecipeBuilder> consumer)
     {
         final List<ItemStorage> input = new ArrayList<>();
-        input.add(new ItemStorage(new ItemStack(Items.SAND, 4)));
-        input.add(new ItemStorage(new ItemStack(Items.GRAVEL, 4)));
+        input.add(new ItemStorage(new ItemStack(Items.SAND), 4));
+        input.add(new ItemStorage(new ItemStack(Items.GRAVEL), 4));
 
         for (final DyeColor color : DyeColor.values())
         {

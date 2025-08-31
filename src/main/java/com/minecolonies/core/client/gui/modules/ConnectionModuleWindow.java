@@ -84,7 +84,7 @@ public class ConnectionModuleWindow extends AbstractModuleWindow
 
         MessageUtils.format("com.minecolonies.core.gui.colonylist.travel.really", connectedColonyData.name)
             .withPriority(MessageUtils.MessagePriority.IMPORTANT)
-            .withClickEvent(new ClickEventWithExecutable(() -> new TeleportToColonyMessage(mc.level.dimension(), connectedColonyData.id, connectedColonyData.pos).sendToServer()))
+            .withClickEvent(new ClickEventWithExecutable(() -> new TeleportToColonyMessage(mc.level.dimension(), connectedColonyData.id, connectedColonyData.pos, buildingView.getColony().getID()).sendToServer()))
             .sendTo(Minecraft.getInstance().player);
         this.close();
     }
