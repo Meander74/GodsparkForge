@@ -11,11 +11,17 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecolonies:blockpostbox"
+          "functions": [
+            {
+              "function": "minecraft:copy_name",
+              "source": "block_entity"
+            }
+          ],
+          "name": "minecolonies:blockhutgatehouse"
         }
       ],
       "rolls": 1.0
     }
   ],
-  "random_sequence": "minecolonies:blocks/blockpostbox"
+  "random_sequence": "minecolonies:blocks/blockhutgatehouse"
 }
