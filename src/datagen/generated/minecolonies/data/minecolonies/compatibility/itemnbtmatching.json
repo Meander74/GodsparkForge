@@ -844,6 +844,12 @@
     "checkednbtkeys": [
       "minecraft:food"
     ],
+    "item": "minecolonies:fried_rice"
+  },
+  {
+    "checkednbtkeys": [
+      "minecraft:food"
+    ],
     "item": "minecolonies:garlic"
   },
   {

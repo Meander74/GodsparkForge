@@ -111,6 +111,7 @@ public class DefaultResearchProvider extends AbstractResearchProvider
         effects.add(new ResearchEffect(WORK_LONGER).setTranslatedName("Citizen Work Day +%sH").setLevels(new double[] {1, 2}));
         effects.add(new ResearchEffect(RESURRECT_CHANCE).setTranslatedName("Improve Resurrection Chance by +%3$s%%").setLevels(new double[] {0.01, 0.03}));
         effects.add(new ResearchEffect(GRAVE_DECAY_BONUS).setTranslatedName("Citizen Graves Take %s More Minutes to Decay").setLevels(new double[] {5, 10}));
+        effects.add(new ResearchEffect(LOOTING).setTranslatedName("Herders Gain Looting %s").setLevels(new double[] {1}));
 
         // Guard and Worker unlocks do not need a strength, but do have static ResourceLocations.
         effects.add(new ResearchEffect(ARCHER_USE_ARROWS).setTranslatedName("Archers Use Arrows For +2 Damage"));
@@ -1289,6 +1290,18 @@ public class DefaultResearchProvider extends AbstractResearchProvider
                                         .addItemCost(Items.SUGAR_CANE, 32, provider)
                                         .addItemCost(Items.CACTUS, 32, provider)
                                         .addEffect(PLANTATION_LARGE, 1)
+                                        .addToList(r);
+
+        final Research skilledButcher = new Research(new ResourceLocation(Constants.MOD_ID, "technology/skilledbutcher"), TECH).setParentResearch(biodegradable)
+                                        .setTranslatedName("Skilled Butcher")
+                                        .setTranslatedSubtitle("Measure twice, cut once!")
+                                        .setIcon(Items.BEEF)
+                                        .addBuildingRequirement(new ResourceLocation(Constants.MOD_ID, ModBuildings.ENCHANTER_ID), 2)
+                                        .addBuildingRequirement(new ResourceLocation(Constants.MOD_ID, ModBuildings.BLACKSMITH_ID), 2)
+                                        .addItemCost(Items.DIAMOND_AXE, 1, provider)
+                                        .addItemCost(Items.ENCHANTED_BOOK, 1, provider)
+                                        .addItemCost(Items.ANVIL, 1, provider)
+                                        .addEffect(LOOTING, 1)
                                         .addToList(r);
 
         new Research(new ResourceLocation(Constants.MOD_ID, "technology/junglemaster"), TECH).setParentResearch(letItGrow)

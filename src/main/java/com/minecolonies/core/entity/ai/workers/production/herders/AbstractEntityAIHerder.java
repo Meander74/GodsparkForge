@@ -9,6 +9,7 @@ import com.minecolonies.api.equipment.registry.EquipmentTypeEntry;
 import com.minecolonies.api.util.InventoryUtils;
 import com.minecolonies.api.util.ItemStackUtils;
 import com.minecolonies.api.util.StatsUtil;
+import com.minecolonies.api.util.Utils;
 import com.minecolonies.api.util.WorldUtil;
 import com.minecolonies.api.util.constant.ColonyConstants;
 import com.minecolonies.core.colony.buildings.AbstractBuilding;
@@ -18,6 +19,7 @@ import com.minecolonies.core.entity.ai.workers.AbstractEntityAIInteract;
 import com.minecolonies.core.entity.pathfinding.navigation.EntityNavigationUtils;
 import com.minecolonies.core.util.citizenutils.CitizenItemUtils;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
@@ -25,7 +27,12 @@ import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.util.FakePlayer;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,6 +41,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static com.minecolonies.api.entity.ai.statemachine.states.AIWorkerState.*;
+import static com.minecolonies.api.research.util.ResearchConstants.LOOTING;
 import static com.minecolonies.api.util.constant.Constants.TICKS_SECOND;
 import static com.minecolonies.api.util.constant.EquipmentLevelConstants.TOOL_LEVEL_WOOD_OR_GOLD;
 import static com.minecolonies.api.util.constant.StatisticsConstants.*;
@@ -43,6 +51,7 @@ import static com.minecolonies.api.util.constant.StatisticsConstants.*;
  */
 public abstract class AbstractEntityAIHerder<J extends AbstractJob<?, J>, B extends AbstractBuilding> extends AbstractEntityAIInteract<J, B>
 {
+        
     /**
      * How many animals per hut level the worker should max have.
      */
@@ -754,6 +763,36 @@ public abstract class AbstractEntityAIHerder<J extends AbstractJob<?, J>, B exte
     }
 
     /**
+     * Ensures that the given itemStack has looting I
+     */
+    private void ensureLootingI(ItemStack stack)
+    {        
+        int enchantLevel = 1;
+
+        Holder<Enchantment> enchantment =  Utils.getRegistryValue(Enchantments.LOOTING, world);
+        
+        if (stack.supportsEnchantment(enchantment) && enchantLevel >= enchantment.value().getMinLevel() && enchantLevel <= enchantment.value().getMaxLevel())
+        {
+            stack.enchant(enchantment, enchantLevel);
+        }
+
+    }
+
+    /**
+     * Simulates a butcher swing against an animal. The animal is given damage from the butcher's attack, and the butcher's held item is damaged.
+     * The swing animation is also played.
+     * @param fakePlayer the {@link FakePlayer} to simulate the attack from.
+     * @param animal the animal being attacked.
+     */
+    protected void butcherSwing(FakePlayer fakePlayer, Animal animal)
+    {
+        worker.swing(InteractionHand.MAIN_HAND); // visual only
+        DamageSource ds = animal.level().damageSources().playerAttack(fakePlayer);
+        animal.hurt(ds, (float) getButcheringAttackDamage());
+        CitizenItemUtils.damageItemInHand(worker, InteractionHand.MAIN_HAND, 1);
+    }
+
+    /**
      * Butcher an animal.
      *
      * @param animal the {@link Animal} we are butchering
@@ -762,10 +801,37 @@ public abstract class AbstractEntityAIHerder<J extends AbstractJob<?, J>, B exte
     {
         if (animal != null && !walkingToAnimal(animal) && !ItemStackUtils.isEmpty(worker.getMainHandItem()))
         {
-            worker.swing(InteractionHand.MAIN_HAND);
-            final DamageSource ds = animal.level().damageSources().playerAttack(getFakePlayer());
-            animal.hurt(ds, (float) getButcheringAttackDamage());
-            CitizenItemUtils.damageItemInHand(worker, InteractionHand.MAIN_HAND, 1);
+            boolean looting = worker.getCitizenColonyHandler().getColonyOrRegister().getResearchManager().getResearchEffects().getEffectStrength(LOOTING) > 0;
+
+            if (looting)
+            {
+                final FakePlayer fp = getFakePlayer();
+                if (fp == null) return;
+
+                // Ensure the worker’s weapon has Looting I
+                ItemStack workerWeapon = worker.getMainHandItem();
+
+                // Temporarily mirror the weapon onto the fake player
+                ItemStack prev = fp.getMainHandItem();
+                ItemStack temp = workerWeapon.copy();
+                ensureLootingI(temp);
+                fp.setItemInHand(InteractionHand.MAIN_HAND, temp);
+
+                try
+                {
+                    butcherSwing(fp, animal);
+                }
+                finally
+                {
+                    // Restore whatever the fake player had (usually empty) to avoid dupes/leaks
+                    fp.setItemInHand(InteractionHand.MAIN_HAND, prev);
+                }
+            }
+            else 
+            {
+                butcherSwing(getFakePlayer(), animal);
+            }
+
         }
     }
 
