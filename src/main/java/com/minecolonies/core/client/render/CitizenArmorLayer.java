@@ -2,11 +2,14 @@ package com.minecolonies.core.client.render;
 
 import com.minecolonies.api.colony.ICitizenDataView;
 import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
+import com.minecolonies.api.util.Log;
+import com.minecolonies.core.event.ClientEventHandler;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.yggdrasil.ProfileResult;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
@@ -24,11 +27,15 @@ import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.util.FastColor;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.item.*;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.ArmorMaterial;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.armortrim.ArmorTrim;
 import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.item.component.ResolvableProfile;
@@ -37,15 +44,18 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @OnlyIn(Dist.CLIENT)
 public class CitizenArmorLayer<T extends AbstractEntityCitizen, M extends HumanoidModel<T>, A extends HumanoidModel<T>> extends HumanoidArmorLayer<T, M, A>
 {
     private final Map<SkullBlock.Type, SkullModelBase> skullModels;
     private final Map<UUID, ResolvableProfile> gameProfileMap = new HashMap<>();
+
+    /**
+     * Set of items except from rendering as they're causing errors
+     */
+    private static Set<Item> disabledFromRendering = new HashSet<>();
 
     public CitizenArmorLayer(RenderLayerParent<T, M> parentLayer, A innerModel, A outerModel, ModelManager modelManager, final EntityModelSet modelSet)
     {
@@ -135,35 +145,46 @@ public class CitizenArmorLayer<T extends AbstractEntityCitizen, M extends Humano
         }
         Item armorItem = itemstack.getItem();
 
-        if (armorItem instanceof ArmorItem armoritem)
+        if (armorItem instanceof ArmorItem armoritem && !disabledFromRendering.contains(armorItem))
         {
-            if (armoritem.getEquipmentSlot() == equipmentSlot)
+            try
             {
-                this.getParentModel().copyPropertiesTo(armor);
-                this.setPartVisibility(armor, equipmentSlot);
-                net.minecraft.client.model.Model model = getArmorModelHook(citizen, itemstack, equipmentSlot, armor);
-                boolean flag = this.usesInnerModel(equipmentSlot);
-                ArmorMaterial armormaterial = armoritem.getMaterial().value();
-
-                int i = itemstack.is(ItemTags.DYEABLE) ? FastColor.ARGB32.opaque(DyedItemColor.getOrDefault(itemstack, -6265536)) : -1;
-
-                for (ArmorMaterial.Layer armormaterial$layer : armormaterial.layers())
+                if (armoritem.getEquipmentSlot() == equipmentSlot)
                 {
-                    int j = armormaterial$layer.dyeable() ? i : -1;
-                    var texture = net.neoforged.neoforge.client.ClientHooks.getArmorTexture(citizen, itemstack, armormaterial$layer, flag, equipmentSlot);
-                    this.renderModel(poseStack, bufferSource, light, model, j, texture);
-                }
+                    this.getParentModel().copyPropertiesTo(armor);
+                    this.setPartVisibility(armor, equipmentSlot);
+                    net.minecraft.client.model.Model model = getArmorModelHook(citizen, itemstack, equipmentSlot, armor);
+                    boolean flag = this.usesInnerModel(equipmentSlot);
+                    ArmorMaterial armormaterial = armoritem.getMaterial().value();
 
-                ArmorTrim armortrim = itemstack.get(DataComponents.TRIM);
-                if (armortrim != null)
-                {
-                    this.renderTrim(armoritem.getMaterial(), poseStack, bufferSource, light, armortrim, model, flag);
-                }
+                    int i = itemstack.is(ItemTags.DYEABLE) ? FastColor.ARGB32.opaque(DyedItemColor.getOrDefault(itemstack, -6265536)) : -1;
 
-                if (itemstack.hasFoil())
-                {
-                    this.renderGlint(poseStack, bufferSource, light, model);
+                    for (ArmorMaterial.Layer armormaterial$layer : armormaterial.layers())
+                    {
+                        int j = armormaterial$layer.dyeable() ? i : -1;
+                        var texture = net.neoforged.neoforge.client.ClientHooks.getArmorTexture(citizen, itemstack, armormaterial$layer, flag, equipmentSlot);
+                        this.renderModel(poseStack, bufferSource, light, model, j, texture);
+                    }
+
+                    ArmorTrim armortrim = itemstack.get(DataComponents.TRIM);
+                    if (armortrim != null)
+                    {
+                        this.renderTrim(armoritem.getMaterial(), poseStack, bufferSource, light, armortrim, model, flag);
+                    }
+
+                    if (itemstack.hasFoil())
+                    {
+                        this.renderGlint(poseStack, bufferSource, light, model);
+                    }
                 }
+            }
+            catch (Exception e)
+            {
+                Log.getLogger().warn("Error rendering armor: " + itemstack + " report to the armor's mod.", e);
+                disabledFromRendering.add(armorItem);
+                ClientEventHandler.extraItemTooltips.put(armorItem,
+                    Component.literal("This armor is causing errors when rendering on citizens, check your latest.log and report to the respective armor mod.").withStyle(
+                        ChatFormatting.RED));
             }
         }
     }

@@ -127,6 +127,11 @@ public class ClientEventHandler
     }
 
     /**
+     * Additional tooltips added to specific items
+     */
+    public static Map<Item, Component> extraItemTooltips = new HashMap<>();
+
+    /**
      * Fires when an item tooltip is requested, generally from inventory, JEI, or when minecraft is first populating the recipe book.
      *
      * @param event An ItemTooltipEvent
@@ -142,6 +147,12 @@ public class ClientEventHandler
         IColony colony = IMinecoloniesAPI.getInstance().getColonyManager().getIColony(event.getEntity().level(), event.getEntity().blockPosition());
 
         final ItemStack stack = event.getItemStack();
+
+        if (extraItemTooltips.containsKey(stack.getItem()))
+        {
+            event.getToolTip().add(extraItemTooltips.get(stack.getItem()));
+        }
+
         if (colony == null)
         {
             colony = IMinecoloniesAPI.getInstance().getColonyManager().getIColonyByOwner(event.getEntity().level(), event.getEntity());
