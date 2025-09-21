@@ -156,6 +156,11 @@ public abstract class AbstractPathJob implements Callable<Path>, IPathJob
     private MNode startNode = null;
 
     /**
+     * Current best node
+     */
+    private MNode bestNode = null;
+
+    /**
      * Visited level
      */
     private int visitedLevel = 1;
@@ -326,7 +331,7 @@ public abstract class AbstractPathJob implements Callable<Path>, IPathJob
     @Nullable
     protected Path search()
     {
-        MNode bestNode = getAndSetupStartNode();
+        bestNode = getAndSetupStartNode();
         double bestNodeEndScore = getEndNodeScore(bestNode);
         // Node count since we found a better end node than the current one
         int nodesSinceEndNode = 0;
@@ -581,6 +586,12 @@ public abstract class AbstractPathJob implements Callable<Path>, IPathJob
         if (costPerEstimation <= 0.0)
         {
             return false;
+        }
+
+        // When reaching and never having done a heuristic rebalance and we did explore a high cost assume that we found a possibly too expensive path
+        if (reaches && maxCost > 20 && visitedLevel == 1 && totalNodesVisited < maxNodes * 0.5)
+        {
+            costPerEstimation *= 0.7;
         }
 
         // Detect an overstimating heuristic(not guranteed, but can check the found path)
@@ -1858,7 +1869,8 @@ public abstract class AbstractPathJob implements Callable<Path>, IPathJob
     @Override
     public String toString()
     {
-        return getClass().getSimpleName() + " start:" + start + " entity:" + entity + " maxNodes:" + maxNodes + " totalNodesVisited:" + totalNodesVisited + " h-rebalances:" + (
+        return getClass().getSimpleName() + " start:" + start + " entity:" + entity + " maxNodes:" + maxNodes + " totalNodesVisited:" + totalNodesVisited + " bestNodeCost:"
+            + bestNode.getCost() + " heuristicCostEstimate:" + startNode.getHeuristic() + " h-rebalances:" + (
             visitedLevel - 1) + " reaches:"
             + reachesDestination;
     }
