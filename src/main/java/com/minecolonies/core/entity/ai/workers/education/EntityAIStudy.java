@@ -10,7 +10,7 @@ import com.minecolonies.api.util.Tuple;
 import com.minecolonies.core.colony.buildings.workerbuildings.BuildingLibrary;
 import com.minecolonies.core.colony.jobs.JobStudent;
 import com.minecolonies.core.datalistener.StudyItemListener;
-import com.minecolonies.core.datalistener.StudyItemListener.StudyItem;
+import com.minecolonies.core.datalistener.model.StudyItem;
 import com.minecolonies.core.entity.ai.workers.AbstractEntityAISkill;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
@@ -112,7 +112,7 @@ public class EntityAIStudy extends AbstractEntityAISkill<JobStudent, BuildingLib
             return getState();
         }
 
-        final Collection<StudyItem> studyItems = StudyItemListener.getAllStudyItems().values();
+        final Collection<StudyItem> studyItems = StudyItemListener.INSTANCE.getEntries().values();
 
         // Search for Items to use to study
         final List<StudyItem> availableItemKeys = new ArrayList<>();
