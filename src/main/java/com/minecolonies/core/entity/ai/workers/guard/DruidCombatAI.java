@@ -168,7 +168,6 @@ public class DruidCombatAI extends AttackMoveAI<EntityCitizen>
 
         user.getThreatTable().removeCurrentTarget();
 
-        user.decreaseSaturationForContinuousAction();
         user.getCitizenExperienceHandler().addExperience(PER_POTION_XP);
     }
 
@@ -344,7 +343,8 @@ public class DruidCombatAI extends AttackMoveAI<EntityCitizen>
     @Override
     protected void onTargetDied(final LivingEntity entity)
     {
-        parentAI.incrementActionsDoneAndDecSaturation();
+        parentAI.incrementActionsDone();
         user.getCitizenExperienceHandler().addExperience(EXP_PER_MOB_DEATH);
+        user.decreaseSaturationForContinuousAction();
     }
 }
