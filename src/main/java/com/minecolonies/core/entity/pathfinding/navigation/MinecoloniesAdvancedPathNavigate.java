@@ -406,7 +406,7 @@ public class MinecoloniesAdvancedPathNavigate extends AbstractAdvancedPathNaviga
                 }
             }
 
-            if (wantedPosition != null)
+            if (!wantedPosition.empty())
             {
                 mob.getMoveControl().setWantedPosition(wantedPosition.getX(), wantedPosition.getY(), wantedPosition.getZ(), speedModifier);
             }
