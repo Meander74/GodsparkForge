@@ -361,22 +361,17 @@ public abstract class AbstractSchematicProvider implements ISchematicProvider, I
                 blueprint = blueprintFuture.get();
                 if (blueprint != null)
                 {
-                    blueprint.setRotationMirror(getRotationMirror(), colony.getWorld());
-                    final BlockInfo info = blueprint.getBlockInfoAsMap().getOrDefault(blueprint.getPrimaryBlockOffset(), null);
-                    if (info.getTileEntityData() != null)
-                    {
-                        final CompoundTag teCompound = info.getTileEntityData().copy();
-                        teCompound.putString(TAG_PACK, blueprint.getPackName());
-                        final String location = StructurePacks.getStructurePack(blueprint.getPackName()).getSubPath(blueprint.getFilePath().resolve(blueprint.getFileName()));
-                        teCompound.putString(TAG_NAME, location);
-
-                        getTileEntity().readSchematicDataFromNBT(teCompound);
-                    }
-
+                    blueprintFuture = null;
                     if (recalcPrestige)
                     {
                         calculatePrestige(blueprint);
+                        recalcPrestige = false;
                     }
+                }
+                else
+                {
+                    recalcPrestige = false;
+                    colony.getServerBuildingManager().clearPendingPrestigeCalc(this);
                 }
             }
             catch (Exception e)
@@ -390,6 +385,13 @@ public abstract class AbstractSchematicProvider implements ISchematicProvider, I
     @Override
     public void asyncPrestigeRecalc()
     {
+        // No need to calculate prestige for buildings at level 0.
+        if (buildingLevel == 0)
+        {
+            colony.getServerBuildingManager().clearPendingPrestigeCalc(this);
+            return;
+        }
+
         if (!recalcPrestige)
         {
             recalcPrestige = true;
