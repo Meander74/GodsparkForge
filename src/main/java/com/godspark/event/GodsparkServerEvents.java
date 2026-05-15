@@ -9,6 +9,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.jetbrains.annotations.Nullable;
 
@@ -16,7 +17,6 @@ import java.util.List;
 
 public final class GodsparkServerEvents {
     private static long tickCounter = 0;
-    private static boolean savedDataLoaded = false;
     @Nullable
     private static GodsparkSavedData savedData = null;
 
@@ -28,21 +28,24 @@ public final class GodsparkServerEvents {
             GodsparkSavedData::createDefault,
             GodsparkSavedData.DATA_KEY
         );
-        savedData.restoreToStateManager();
-        savedDataLoaded = true;
+        savedData.restoreTo(GodsparkMod.EVENT_STATE_MANAGER);
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        if (savedData != null) {
+            savedData.captureFrom(GodsparkMod.EVENT_STATE_MANAGER);
+            GodsparkMod.LOGGER.info("[Godspark SavedData] Captured final event state");
+        }
     }
 
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
-        if (savedDataLoaded && savedData != null) {
-            savedData.captureFromStateManager();
-        }
         GodsparkMod.COLONY_OBSERVER.clear();
         GodsparkMod.PRESSURE_ENGINE.clear();
         GodsparkMod.EVENT_QUEUE.clear();
         GodsparkMod.EVENT_STATE_MANAGER.clear();
         tickCounter = 0;
-        savedDataLoaded = false;
         savedData = null;
         GodsparkMod.LOGGER.info("[Godspark] Static services cleared");
     }
@@ -79,7 +82,7 @@ public final class GodsparkServerEvents {
             );
 
             if (!transitions.isEmpty() && savedData != null) {
-                savedData.captureFromStateManager();
+                savedData.captureFrom(GodsparkMod.EVENT_STATE_MANAGER);
             }
 
             for (EventRecord record : transitions) {

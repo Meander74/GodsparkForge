@@ -1,11 +1,19 @@
 package com.godspark.persistence;
 
-import com.godspark.GodsparkMod;
 import com.godspark.pressure.PressureType;
-import com.godspark.story.*;
+import com.godspark.story.EventStateManager;
+import com.godspark.story.EventState;
+import com.godspark.story.EventSeverity;
+import com.godspark.story.EventRecord;
+import com.godspark.story.StoryEvent;
+import com.godspark.story.StoryEventType;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.saveddata.SavedData;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -13,6 +21,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class GodsparkSavedData extends SavedData {
+
+    private static final Logger LOGGER = LogManager.getLogger(GodsparkSavedData.class);
+    private static final int DATA_VERSION = 1;
+    private static final int MAX_RESOLVED_EVENTS = 500;
 
     public static final String DATA_KEY = "godspark_data";
 
@@ -41,24 +53,27 @@ public class GodsparkSavedData extends SavedData {
         GodsparkSavedData data = new GodsparkSavedData();
 
         if (tag.contains("activeEvents")) {
-            ListTag activeList = tag.getList("activeEvents", 10);
+            ListTag activeList = tag.getList("activeEvents", Tag.TAG_COMPOUND);
             for (int i = 0; i < activeList.size(); i++) {
                 CompoundTag eventTag = activeList.getCompound(i);
                 SavedEventRecord record = readEventRecord(eventTag);
+                if (record == null) continue;
                 String key = record.colonyId() + ":" + record.pressureType().name();
                 data.activeEvents.put(key, record);
             }
         }
 
         if (tag.contains("resolvedEvents")) {
-            ListTag resolvedList = tag.getList("resolvedEvents", 10);
+            ListTag resolvedList = tag.getList("resolvedEvents", Tag.TAG_COMPOUND);
             for (int i = 0; i < resolvedList.size(); i++) {
                 CompoundTag eventTag = resolvedList.getCompound(i);
                 SavedEventRecord record = readEventRecord(eventTag);
+                if (record == null) continue;
                 data.resolvedEvents.addLast(record);
             }
         }
 
+        data.trimResolvedEvents();
         return data;
     }
 
@@ -66,28 +81,67 @@ public class GodsparkSavedData extends SavedData {
         return new GodsparkSavedData();
     }
 
+    @Nullable
     private static SavedEventRecord readEventRecord(CompoundTag tag) {
-        return new SavedEventRecord(
-            StoryEventType.valueOf(tag.getString("eventType")),
-            tag.getInt("colonyId"),
-            tag.getString("colonyName"),
-            PressureType.valueOf(tag.getString("pressureType")),
-            EventSeverity.valueOf(tag.getString("severity")),
-            tag.getInt("pressureValue"),
-            tag.getInt("threshold"),
-            tag.getString("description"),
-            tag.getLong("gameTick"),
-            EventState.valueOf(tag.getString("state")),
-            tag.getInt("persistenceCount"),
-            tag.getInt("missingCycles"),
-            tag.getLong("firstSeenTick"),
-            tag.getLong("lastSeenTick"),
-            tag.getLong("resolvedTick")
-        );
+        try {
+            StoryEventType eventType = parseEnumOrNull(StoryEventType.class, tag.getString("eventType"));
+            if (eventType == null) {
+                LOGGER.warn("[Godspark SavedData] Skipping record with unknown eventType");
+                return null;
+            }
+
+            PressureType pressureType = parseEnum(PressureType.class, tag.getString("pressureType"), eventType.pressureType());
+            EventSeverity severity = parseEnum(EventSeverity.class, tag.getString("severity"), eventType.severity());
+            EventState state = parseEnum(EventState.class, tag.getString("state"), EventState.ACTIVE);
+
+            int threshold = tag.contains("threshold") ? tag.getInt("threshold") : eventType.threshold();
+            String description = tag.contains("description") ? tag.getString("description") : eventType.description();
+            long resolvedTick = tag.contains("resolvedTick") ? tag.getLong("resolvedTick") : -1L;
+
+            return new SavedEventRecord(
+                eventType,
+                tag.getInt("colonyId"),
+                tag.getString("colonyName"),
+                pressureType,
+                severity,
+                tag.getInt("pressureValue"),
+                threshold,
+                description,
+                tag.getLong("gameTick"),
+                state,
+                tag.getInt("persistenceCount"),
+                tag.getInt("missingCycles"),
+                tag.getLong("firstSeenTick"),
+                tag.getLong("lastSeenTick"),
+                resolvedTick
+            );
+        } catch (Exception e) {
+            LOGGER.warn("[Godspark SavedData] Skipping invalid event record: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    @Nullable
+    private static <E extends Enum<E>> E parseEnumOrNull(Class<E> enumClass, String value) {
+        try {
+            return Enum.valueOf(enumClass, value);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static <E extends Enum<E>> E parseEnum(Class<E> enumClass, String value, E fallback) {
+        try {
+            return Enum.valueOf(enumClass, value);
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 
     @Override
     public CompoundTag save(CompoundTag tag) {
+        tag.putInt("version", DATA_VERSION);
+
         ListTag activeList = new ListTag();
         for (SavedEventRecord record : activeEvents.values()) {
             activeList.add(writeEventRecord(record));
@@ -123,8 +177,8 @@ public class GodsparkSavedData extends SavedData {
         return tag;
     }
 
-    public void restoreToStateManager() {
-        GodsparkMod.EVENT_STATE_MANAGER.clear();
+    public void restoreTo(EventStateManager manager) {
+        manager.clear();
 
         for (SavedEventRecord saved : activeEvents.values()) {
             StoryEvent event = new StoryEvent(
@@ -147,7 +201,11 @@ public class GodsparkSavedData extends SavedData {
                 saved.lastSeenTick(),
                 saved.resolvedTick()
             );
-            GodsparkMod.EVENT_STATE_MANAGER.restoreActive(record);
+            if (record.isResolved()) {
+                manager.restoreResolved(record);
+            } else {
+                manager.restoreActive(record);
+            }
         }
 
         for (SavedEventRecord saved : resolvedEvents) {
@@ -171,21 +229,25 @@ public class GodsparkSavedData extends SavedData {
                 saved.lastSeenTick(),
                 saved.resolvedTick()
             );
-            GodsparkMod.EVENT_STATE_MANAGER.restoreResolved(record);
+            if (record.isResolved()) {
+                manager.restoreResolved(record);
+            } else {
+                manager.restoreActive(record);
+            }
         }
 
-        GodsparkMod.LOGGER.info(
+        LOGGER.info(
             "[Godspark SavedData] Restored {} active, {} resolved events",
             activeEvents.size(),
             resolvedEvents.size()
         );
     }
 
-    public void captureFromStateManager() {
+    public void captureFrom(EventStateManager manager) {
         activeEvents.clear();
         resolvedEvents.clear();
 
-        for (EventRecord record : GodsparkMod.EVENT_STATE_MANAGER.getAllActive()) {
+        for (EventRecord record : manager.getAllActive()) {
             StoryEvent event = record.event();
             SavedEventRecord saved = new SavedEventRecord(
                 event.eventType(),
@@ -208,7 +270,7 @@ public class GodsparkSavedData extends SavedData {
             activeEvents.put(key, saved);
         }
 
-        for (EventRecord record : GodsparkMod.EVENT_STATE_MANAGER.getAllResolved()) {
+        for (EventRecord record : manager.getAllResolved()) {
             StoryEvent event = record.event();
             SavedEventRecord saved = new SavedEventRecord(
                 event.eventType(),
@@ -230,6 +292,13 @@ public class GodsparkSavedData extends SavedData {
             resolvedEvents.addLast(saved);
         }
 
+        trimResolvedEvents();
         setDirty();
+    }
+
+    private void trimResolvedEvents() {
+        while (resolvedEvents.size() > MAX_RESOLVED_EVENTS) {
+            resolvedEvents.removeFirst();
+        }
     }
 }
