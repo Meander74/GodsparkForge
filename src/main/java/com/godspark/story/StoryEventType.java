@@ -11,7 +11,7 @@ public enum StoryEventType {
     SECURITY_MEDIUM(PressureType.SECURITY, EventSeverity.MEDIUM, 70, "Colony defenses look vulnerable", false),
     SECURITY_HIGH(PressureType.SECURITY, EventSeverity.HIGH, 90, "Raid in progress — defenses may fail", true),
 
-    HOUSING_LOW(PressureType.HOUSING, EventSeverity.LOW, 0, "Citizens are seeking shelter", false),
+    HOUSING_LOW(PressureType.HOUSING, EventSeverity.LOW, 25, "Citizens are seeking shelter", false),
     HOUSING_MEDIUM(PressureType.HOUSING, EventSeverity.MEDIUM, 50, "Housing shortage is disrupting the colony", false),
     HOUSING_HIGH(PressureType.HOUSING, EventSeverity.HIGH, 80, "Mass homelessness is causing despair", false),
 

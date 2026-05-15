@@ -2,6 +2,7 @@ package com.godspark.event;
 
 import com.godspark.GodsparkMod;
 import com.godspark.GodsparkConstants;
+import com.godspark.memory.ColonyMemory;
 import com.godspark.persistence.GodsparkSavedData;
 import com.godspark.story.StoryEvent;
 import com.godspark.story.EventRecord;
@@ -29,13 +30,15 @@ public final class GodsparkServerEvents {
             GodsparkSavedData.DATA_KEY
         );
         savedData.restoreTo(GodsparkMod.EVENT_STATE_MANAGER);
+        savedData.restoreMemoriesTo(GodsparkMod.MEMORY_BANK);
     }
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         if (savedData != null) {
             savedData.captureFrom(GodsparkMod.EVENT_STATE_MANAGER);
-            GodsparkMod.LOGGER.info("[Godspark SavedData] Captured final event state");
+            savedData.captureMemoriesFrom(GodsparkMod.MEMORY_BANK);
+            GodsparkMod.LOGGER.info("[Godspark SavedData] Captured final event state and memories");
         }
     }
 
@@ -45,6 +48,7 @@ public final class GodsparkServerEvents {
         GodsparkMod.PRESSURE_ENGINE.clear();
         GodsparkMod.EVENT_QUEUE.clear();
         GodsparkMod.EVENT_STATE_MANAGER.clear();
+        GodsparkMod.MEMORY_BANK.clear();
         tickCounter = 0;
         savedData = null;
         GodsparkMod.LOGGER.info("[Godspark] Static services cleared");
@@ -73,6 +77,7 @@ public final class GodsparkServerEvents {
             List<StoryEvent> candidates = GodsparkMod.EVENT_GENERATOR.generate(
                 GodsparkMod.PRESSURE_ENGINE.getSnapshots(),
                 GodsparkMod.COLONY_OBSERVER.getObservedColonies(),
+                GodsparkMod.MEMORY_BANK,
                 server.getTickCount()
             );
 
@@ -81,8 +86,27 @@ public final class GodsparkServerEvents {
                 server.getTickCount()
             );
 
+            List<ColonyMemory> newMemories = GodsparkMod.MEMORY_ENGINE.generateMemories(
+                transitions,
+                GodsparkMod.MEMORY_BANK,
+                server.getTickCount()
+            );
+
+            for (ColonyMemory memory : newMemories) {
+                ColonyMemory stored = GodsparkMod.MEMORY_BANK.addOrReinforce(memory, server.getTickCount());
+                GodsparkMod.LOGGER.info(
+                    "[Godspark Memory] [{}][{}] {}: {} (intensity={})",
+                    stored.memoryType().getDisplayName(),
+                    stored.pressureType().getDisplayName(),
+                    stored.colonyName(),
+                    stored.content(),
+                    stored.intensity()
+                );
+            }
+
             if (!transitions.isEmpty() && savedData != null) {
                 savedData.captureFrom(GodsparkMod.EVENT_STATE_MANAGER);
+                savedData.captureMemoriesFrom(GodsparkMod.MEMORY_BANK);
             }
 
             for (EventRecord record : transitions) {

@@ -1,5 +1,7 @@
 package com.godspark.story;
 
+import com.godspark.memory.MemoryBank;
+import com.godspark.memory.MemoryInfluence;
 import com.godspark.observer.ColonySnapshot;
 import com.godspark.observer.ObservedColony;
 import com.godspark.pressure.PressureSnapshot;
@@ -13,9 +15,12 @@ import java.util.Map;
 
 public final class EventGenerator {
 
+    private final MemoryInfluence memoryInfluence = new MemoryInfluence();
+
     public List<StoryEvent> generate(
         Map<Integer, PressureSnapshot> pressureSnapshots,
         Map<Integer, ObservedColony> observedColonies,
+        MemoryBank memoryBank,
         long gameTick
     ) {
         if (pressureSnapshots == null || pressureSnapshots.isEmpty()
@@ -35,14 +40,19 @@ public final class EventGenerator {
             }
 
             ColonySnapshot colonySnapshot = observedColony.getLatest();
+            Map<PressureType, Integer> thresholdAdjustments = memoryInfluence.computeAdjustments(
+                colonyId, memoryBank
+            );
 
             for (PressureType pressureType : PressureType.values()) {
                 int pressureValue = pressureSnapshot.values().getOrDefault(pressureType, 0);
+                int thresholdAdjust = thresholdAdjustments.getOrDefault(pressureType, 0);
 
                 StoryEventType bestMatch = findHighestMatchingEvent(
                     pressureType,
                     pressureValue,
-                    colonySnapshot
+                    colonySnapshot,
+                    thresholdAdjust
                 );
 
                 if (bestMatch == null) {
@@ -69,11 +79,12 @@ public final class EventGenerator {
     private StoryEventType findHighestMatchingEvent(
         PressureType pressureType,
         int pressureValue,
-        ColonySnapshot colonySnapshot
+        ColonySnapshot colonySnapshot,
+        int thresholdAdjust
     ) {
         return Arrays.stream(StoryEventType.values())
             .filter(type -> type.pressureType() == pressureType)
-            .filter(type -> pressureValue > type.threshold())
+            .filter(type -> pressureValue > type.threshold() + thresholdAdjust)
             .filter(type -> !type.requiresActiveRaid() || colonySnapshot.hasActiveRaid())
             .max(Comparator.comparingInt(type -> type.severity().rank()))
             .orElse(null);

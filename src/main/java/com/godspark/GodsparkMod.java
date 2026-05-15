@@ -2,6 +2,8 @@ package com.godspark;
 
 import com.godspark.command.GodsparkCommands;
 import com.godspark.event.GodsparkServerEvents;
+import com.godspark.memory.MemoryBank;
+import com.godspark.memory.MemoryEngine;
 import com.godspark.observer.ColonyObserver;
 import com.godspark.pressure.PressureEngine;
 import com.godspark.story.EventGenerator;
@@ -24,6 +26,8 @@ public final class GodsparkMod {
     public static final EventGenerator EVENT_GENERATOR = new EventGenerator();
     public static final EventQueue EVENT_QUEUE = new EventQueue();
     public static final EventStateManager EVENT_STATE_MANAGER = new EventStateManager();
+    public static final MemoryBank MEMORY_BANK = new MemoryBank();
+    public static final MemoryEngine MEMORY_ENGINE = new MemoryEngine();
 
     @SuppressWarnings("deprecation")
     public GodsparkMod() {

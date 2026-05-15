@@ -2,6 +2,9 @@ package com.godspark.command;
 
 import com.godspark.GodsparkConstants;
 import com.godspark.GodsparkMod;
+import com.godspark.memory.ColonyMemory;
+import com.godspark.memory.MemoryInfluence;
+import com.godspark.memory.MemoryType;
 import com.godspark.observer.ObservedColony;
 import com.godspark.pressure.PressureSnapshot;
 import com.godspark.pressure.PressureType;
@@ -121,6 +124,20 @@ public final class GodsparkCommands {
             )
         );
 
+        root.then(Commands.literal("memories")
+            .executes(ctx -> showMemories(ctx.getSource(), -1))
+            .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
+                .executes(ctx -> showMemories(
+                    ctx.getSource(),
+                    IntegerArgumentType.getInteger(ctx, "colonyId")
+                ))
+            )
+        );
+
+        root.then(Commands.literal("influences")
+            .executes(ctx -> showInfluences(ctx.getSource()))
+        );
+
         dispatcher.register(root);
     }
 
@@ -164,6 +181,94 @@ public final class GodsparkCommands {
                     record.event().description(),
                     record.persistenceCount()
                 ));
+            }
+        }
+
+        source.sendSuccess(() -> Component.literal(sb.toString()), false);
+        return 1;
+    }
+
+    private static int showMemories(CommandSourceStack source, int colonyId) {
+        if (GodsparkMod.MEMORY_BANK.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("No Godspark memories recorded yet."), false);
+            return 1;
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        if (colonyId > 0) {
+            List<ColonyMemory> colonyMemories = GodsparkMod.MEMORY_BANK.getStrongestMemories(colonyId, 10);
+            if (colonyMemories.isEmpty()) {
+                source.sendSuccess(() -> Component.literal(
+                    String.format("No memories recorded for colony #%d.", colonyId)
+                ), false);
+                return 1;
+            }
+
+            String colonyName = colonyMemories.get(0).colonyName();
+            sb.append(String.format("Memories for %s (#%d):\n", colonyName, colonyId));
+            for (ColonyMemory memory : colonyMemories) {
+                sb.append(formatMemoryLine(memory));
+            }
+        } else {
+            sb.append("Godspark memories:\n");
+            List<ColonyMemory> allMemories = GodsparkMod.MEMORY_BANK.getAllMemories();
+            int count = 0;
+            for (ColonyMemory memory : allMemories) {
+                if (count >= 20) break;
+                sb.append(formatMemoryLine(memory));
+                count++;
+            }
+        }
+
+        source.sendSuccess(() -> Component.literal(sb.toString()), false);
+        return 1;
+    }
+
+    private static String formatMemoryLine(ColonyMemory memory) {
+        return String.format(
+            "  [%s %d][%s] %s (reinforced=%d)\n",
+            memory.memoryType().getDisplayName(),
+            memory.intensity(),
+            memory.pressureType().getDisplayName(),
+            memory.content(),
+            memory.reinforcementCount()
+        );
+    }
+
+    private static int showInfluences(CommandSourceStack source) {
+        Map<Integer, ObservedColony> colonies = GodsparkMod.COLONY_OBSERVER.getObservedColonies();
+        if (colonies.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("No colonies observed yet."), false);
+            return 1;
+        }
+
+        MemoryInfluence influence = new MemoryInfluence();
+        StringBuilder sb = new StringBuilder("Memory threshold adjustments:\n");
+
+        for (ObservedColony colony : colonies.values()) {
+            var latest = colony.getLatest();
+            if (latest == null) continue;
+
+            Map<PressureType, Integer> adjustments = influence.computeAdjustments(
+                colony.getColonyId(), GodsparkMod.MEMORY_BANK
+            );
+
+            boolean hasAny = adjustments.values().stream().anyMatch(v -> v != 0);
+            if (!hasAny) {
+                sb.append(String.format("  Colony %d (%s): no adjustments\n",
+                    colony.getColonyId(), latest.name()));
+                continue;
+            }
+
+            sb.append(String.format("  Colony %d (%s):\n", colony.getColonyId(), latest.name()));
+            for (PressureType pt : PressureType.values()) {
+                int adj = adjustments.getOrDefault(pt, 0);
+                if (adj != 0) {
+                    String direction = adj < 0 ? "lower" : "raise";
+                    sb.append(String.format("    %s: %+d (%s threshold by %d)\n",
+                        pt.getDisplayName(), adj, direction, Math.abs(adj)));
+                }
             }
         }
 

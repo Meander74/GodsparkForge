@@ -8,6 +8,8 @@ Godspark is a **Forge 1.20.1 MineColonies companion mod** that observes colony s
 - A **pressure engine** that converts colony metrics into 0-100 pressure scores
 - A **storyteller** that generates event candidates from pressure thresholds
 - An **event lifecycle tracker** with ACTIVE → PERSISTENT → RESOLVED states
+- A **persistent memory system** that records colony traumas, patterns, and triumphs
+- A **memory influence system** that adjusts event thresholds based on colony history
 - An **optional local AI reflection layer** (future)
 
 ## What Godspark Is Not
@@ -36,9 +38,17 @@ ColonySnapshot (14 fields: citizens, buildings, happiness, guards, etc.)
       ↓
 PressureEngine (5 pressure types, 0-100 scale)
       ↓
-EventGenerator (stateless, highest-matching event per pressure)
+EventGenerator (stateless, highest-matching event per pressure, memory-adjusted thresholds)
       ↓
 EventStateManager (ACTIVE → PERSISTENT → RESOLVED lifecycle)
+      ↓
+MemoryEngine (transitions → ColonyMemory: SIGNIFICANT_EVENT/TRAUMA/PATTERN/TRIUMPH)
+      ↓
+MemoryBank (per-colony storage, dedup, reinforce, trim to 50)
+      ↓
+MemoryInfluence (colony memories → threshold adjustments per PressureType)
+      ↘
+EventGenerator (memory-adjusted thresholds)
       ↓
 EventQueue (6000-tick dedup, 100 max history)
       ↓
@@ -47,11 +57,15 @@ Logs + /godspark commands
 
 ## Pressure Formulas
 ```
-FOOD      = clamp(100 - foodBuildingCount * 20)
-SECURITY  = clamp(100 - guardCount * 25 + (hasActiveRaid ? 30 : 0))
-HOUSING   = citizenCount > housingCapacity ? clamp((citizenCount - housingCapacity) * 30) : 0
-COMFORT   = clamp((10.0 - happiness) * 10.0)  // assumes happiness 0-10
-INDUSTRY  = clamp(100 - industryBuildingCount * 15)
+FOOD      = capacityPressure(citizens, foodBuildings, 5.0)
+SECURITY  = capacityPressure(citizens, guards, 8.0) + (hasActiveRaid ? 40 : 0)
+HOUSING   = housingPressure(citizens, housingCapacity)
+COMFORT   = comfortPressure(citizens, happiness)  // target 7.0, not 10.0
+INDUSTRY  = capacityPressure(citizens, industryBuildings, 6.0)
+
+// capacityPressure: shortage ratio × citizenDemandFactor × 100
+// citizenDemandFactor: min(1.0, citizens / 10.0) — scales 0→1 as population grows
+// Fresh colonies (1 citizen) start with low pressure; crisis emerges as population outgrows infrastructure
 ```
 
 ## Event Thresholds
@@ -59,7 +73,7 @@ INDUSTRY  = clamp(100 - industryBuildingCount * 15)
 |---|---|---|---|
 | FOOD | 40 | 70 | 90 |
 | SECURITY | 40 | 70 | 90 + activeRaid |
-| HOUSING | 0 | 50 | 80 |
+| HOUSING | 25 | 50 | 80 |
 | COMFORT | 40 | 70 | 85 |
 | INDUSTRY | 40 | 70 | 90 |
 
@@ -69,19 +83,27 @@ com.godspark
 ├── GodsparkMod.java          — Mod entry point, static service instances
 ├── GodsparkConstants.java    — MOD_ID, VERSION, tick intervals
 ├── command/
-│   └── GodsparkCommands.java — /godspark status|colonies|pressures|events
+│   └── GodsparkCommands.java — /godspark status|colonies|pressures|events|memories
 ├── event/
 │   └── GodsparkServerEvents.java — Server tick heartbeat, throttling
+├── memory/
+│   ├── ColonyMemory.java     — Immutable memory record (12 fields)
+│   ├── MemoryBank.java       — Per-colony storage, dedup, reinforce, trim to 50
+│   ├── MemoryEngine.java     — Generates memories from event transitions (incl. TRIUMPH)
+│   ├── MemoryInfluence.java  — Computes threshold adjustments from colony memories
+│   └── MemoryType.java       — Enum: SIGNIFICANT_EVENT, TRAUMA, PATTERN, TRIUMPH, CULTURAL
 ├── observer/
 │   ├── ColonyObserver.java   — Reflection-based MineColonies API scanner
 │   ├── ColonySnapshot.java   — Immutable colony state record (14 fields)
 │   └── ObservedColony.java   — Tracks snapshot history per colony
+├── persistence/
+│   └── GodsparkSavedData.java — NBT serialization (v2), backward compat with v1
 ├── pressure/
 │   ├── PressureEngine.java   — Computes 5 pressure types from snapshots
 │   ├── PressureSnapshot.java — Immutable pressure values record
 │   └── PressureType.java     — Enum: FOOD, SECURITY, HOUSING, COMFORT, INDUSTRY
 └── story/
-    ├── EventGenerator.java       — Stateless: pressures → event candidates
+    ├── EventGenerator.java       — Stateless: pressures → event candidates (memory-adjusted)
     ├── EventQueue.java           — Dedup (6000 ticks), history (100 max)
     ├── EventRecord.java          — Wraps StoryEvent with lifecycle state
     ├── EventSeverity.java        — Enum: LOW(1), MEDIUM(2), HIGH(3)
@@ -98,6 +120,11 @@ com.godspark
 - **EventGenerator is stateless** — pure function, testable
 - **EventStateManager keyed by colonyId + PressureType** — not StoryEventType (severity changes are one continuing condition)
 - **EventQueue owns display/log dedup** — EventStateManager owns lifecycle truth
+- **MemoryEngine consumes transitions, not all active events** — avoids generating memories every cycle
+- **Dedup by colonyId + memoryType + pressureType** — reinforcement updates intensity/count instead of duplicates
+- **No time-based decay yet** — decayRate stored but unused; Phase 4B focuses on threshold influence not decay
+- **Memory influence is gentle** — TRAUMA: -10, PATTERN: -7, SIGNIFICANT_EVENT: -3, TRIUMPH: +5, capped at -20/+10 per PressureType
+- **Population-scaled pressure** — fresh colonies (1 citizen) start with low pressure; crisis emerges as population outgrows infrastructure
 - **Locale.ROOT for all toLowerCase()** — avoids locale-sensitive bugs
 - **clampPressure handles NaN/infinite, uses Math.round** — robust edge case handling
 - **getSnapshots() returns Map.copyOf()** — prevents external mutation
@@ -107,6 +134,8 @@ com.godspark
 - Pressure compute + event generation: every 1200 ticks (60 seconds)
 - Event dedup cooldown: 6000 ticks (5 minutes)
 - Max snapshot history: 20 per colony
+- Max resolved events: 500
+- Max memories per colony: 50
 
 ## Build & Deploy
 ```powershell
@@ -131,6 +160,9 @@ C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create'a Colony
 /godspark pressures    — Show current pressure values per colony
 /godspark events       — Show active/persistent/resolved events (default 10)
 /godspark events <N>   — Show N recent events (1-50)
+/godspark memories          — Show top 20 memories across all colonies
+/godspark memories <colonyId> — Show top 10 memories for specific colony
+/godspark influences        — Show memory threshold adjustments per colony
 ```
 
 ## Development Phases
@@ -140,8 +172,10 @@ C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create'a Colony
 | 2 | ✅ DONE | Pressure Engine — 5 pressure types, 0-100 scale |
 | 3 | ✅ DONE | Story Events — 15 event types, EventQueue dedup |
 | 3.5A | ✅ DONE | Event Lifecycle State — ACTIVE/PERSISTENT/RESOLVED |
-| 3.5B | ⏭️ Next | SavedData Persistence — events survive restarts |
-| 4 | Future | Memory System — colony memories, persistent history |
+| 3.5B | ✅ DONE | SavedData Persistence — events survive restarts |
+| 4A | ✅ DONE | Memory System — colony memories, pattern detection |
+| 4B | ✅ DONE | Memory Influence — memories affect event thresholds, TRIUMPH memories |
+| 4C | Future | Prayer Seed Generation |
 | 5 | Future | AI Reflection — local llama.cpp narrative |
 | 6 | Future | Civilization Evolution — pressures unlock directions |
 
@@ -157,7 +191,17 @@ C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create'a Colony
 
 ## Known Issues / TODOs
 - Building classification uses heuristic string matching — replace with proper MineColonies building type checks
-- Pressure formulas are heuristic — tune after seeing real data
-- No SavedData persistence yet — events lost on restart (Phase 3.5B)
-- No commit history — repo at C:\ root, no commits made yet
-- Happiness scale assumption (0-10) not verified against actual MineColonies API
+- Pressure formulas rebalanced — tune constants (5.0/8.0/6.0 citizens per building) after playtesting
+- Comfort target happiness (7.0) not verified against actual MineColonies API
+- Memory decay not yet implemented — decayRate stored but unused
+- Phase 4A/4B complete — memory system fully operational with influence on event thresholds
+- Phase 4C (Prayer Seed Generation) — not yet started
+- Phase 5 (AI Reflection) — not yet started
+- Phase 6 (Civilization Evolution) — not yet started
+
+## Current Project State
+- Last commit: 96d45b7 (fix: apply Codex review fixes to Phase 3.5B)
+- Uncommitted work: Memory system (Phase 4A/4B) implemented but not committed
+- Memory influence: Integrated into EventGenerator, thresholds adjust based on colony memories
+- TRIUMPH memories: Implemented for high-severity resolved events
+- All static services initialized in GodsparkMod: COLONY_OBSERVER, PRESSURE_ENGINE, EVENT_GENERATOR, EVENT_QUEUE, EVENT_STATE_MANAGER, MEMORY_BANK, MEMORY_ENGINE
