@@ -2,16 +2,50 @@ package com.godspark.event;
 
 import com.godspark.GodsparkMod;
 import com.godspark.GodsparkConstants;
+import com.godspark.persistence.GodsparkSavedData;
 import com.godspark.story.StoryEvent;
 import com.godspark.story.EventRecord;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
 public final class GodsparkServerEvents {
     private static long tickCounter = 0;
+    private static boolean savedDataLoaded = false;
+    @Nullable
+    private static GodsparkSavedData savedData = null;
+
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        MinecraftServer server = event.getServer();
+        savedData = server.overworld().getDataStorage().computeIfAbsent(
+            GodsparkSavedData::load,
+            GodsparkSavedData::createDefault,
+            GodsparkSavedData.DATA_KEY
+        );
+        savedData.restoreToStateManager();
+        savedDataLoaded = true;
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        if (savedDataLoaded && savedData != null) {
+            savedData.captureFromStateManager();
+        }
+        GodsparkMod.COLONY_OBSERVER.clear();
+        GodsparkMod.PRESSURE_ENGINE.clear();
+        GodsparkMod.EVENT_QUEUE.clear();
+        GodsparkMod.EVENT_STATE_MANAGER.clear();
+        tickCounter = 0;
+        savedDataLoaded = false;
+        savedData = null;
+        GodsparkMod.LOGGER.info("[Godspark] Static services cleared");
+    }
 
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
@@ -43,6 +77,10 @@ public final class GodsparkServerEvents {
                 candidates,
                 server.getTickCount()
             );
+
+            if (!transitions.isEmpty() && savedData != null) {
+                savedData.captureFromStateManager();
+            }
 
             for (EventRecord record : transitions) {
                 GodsparkMod.LOGGER.info(

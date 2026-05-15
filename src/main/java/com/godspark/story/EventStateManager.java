@@ -143,5 +143,30 @@ public final class EventStateManager {
         return resolvedEvents.size();
     }
 
+    public List<EventRecord> getAllActive() {
+        return new ArrayList<>(activeEvents.values());
+    }
+
+    public List<EventRecord> getAllResolved() {
+        return new ArrayList<>(resolvedEvents);
+    }
+
+    public void clear() {
+        activeEvents.clear();
+        resolvedEvents.clear();
+    }
+
+    public void restoreActive(EventRecord record) {
+        EventKey key = new EventKey(record.event().colonyId(), record.event().pressureType());
+        activeEvents.put(key, record);
+    }
+
+    public void restoreResolved(EventRecord record) {
+        resolvedEvents.addLast(record);
+        while (resolvedEvents.size() > MAX_RESOLVED_RECORDS) {
+            resolvedEvents.removeFirst();
+        }
+    }
+
     private record EventKey(int colonyId, PressureType pressureType) {}
 }

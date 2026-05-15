@@ -239,6 +239,10 @@ public final class ColonyObserver {
         return observedColonies;
     }
 
+    public void clear() {
+        observedColonies.clear();
+    }
+
     @Nullable
     public ObservedColony getColony(int id) {
         return observedColonies.get(id);

@@ -64,5 +64,10 @@ public final class EventQueue {
         return events.size();
     }
 
+    public void clear() {
+        events.clear();
+        lastAcceptedTicks.clear();
+    }
+
     private record EventKey(int colonyId, StoryEventType eventType) {}
 }

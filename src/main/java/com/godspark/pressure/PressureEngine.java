@@ -52,6 +52,10 @@ public final class PressureEngine {
         return Map.copyOf(snapshots);
     }
 
+    public void clear() {
+        snapshots.clear();
+    }
+
     private static int clampPressure(double value) {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
             return 0;
