@@ -4,7 +4,10 @@ import com.godspark.command.GodsparkCommands;
 import com.godspark.event.GodsparkServerEvents;
 import com.godspark.memory.MemoryBank;
 import com.godspark.memory.MemoryEngine;
+import com.godspark.memory.MemoryInfluence;
 import com.godspark.observer.ColonyObserver;
+import com.godspark.prayer.PrayerSeedBank;
+import com.godspark.prayer.PrayerSeedGenerator;
 import com.godspark.pressure.PressureEngine;
 import com.godspark.story.EventGenerator;
 import com.godspark.story.EventQueue;
@@ -28,6 +31,9 @@ public final class GodsparkMod {
     public static final EventStateManager EVENT_STATE_MANAGER = new EventStateManager();
     public static final MemoryBank MEMORY_BANK = new MemoryBank();
     public static final MemoryEngine MEMORY_ENGINE = new MemoryEngine();
+    public static final MemoryInfluence MEMORY_INFLUENCE = new MemoryInfluence();
+    public static final PrayerSeedGenerator PRAYER_SEED_GENERATOR = new PrayerSeedGenerator();
+    public static final PrayerSeedBank PRAYER_SEED_BANK = new PrayerSeedBank();
 
     @SuppressWarnings("deprecation")
     public GodsparkMod() {

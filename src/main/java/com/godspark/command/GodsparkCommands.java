@@ -6,6 +6,8 @@ import com.godspark.memory.ColonyMemory;
 import com.godspark.memory.MemoryInfluence;
 import com.godspark.memory.MemoryType;
 import com.godspark.observer.ObservedColony;
+import com.godspark.prayer.PrayerSeed;
+import com.godspark.prayer.PrayerSeedBank;
 import com.godspark.pressure.PressureSnapshot;
 import com.godspark.pressure.PressureType;
 import com.godspark.story.StoryEvent;
@@ -136,6 +138,16 @@ public final class GodsparkCommands {
 
         root.then(Commands.literal("influences")
             .executes(ctx -> showInfluences(ctx.getSource()))
+        );
+
+        root.then(Commands.literal("prayers")
+            .executes(ctx -> showPrayers(ctx.getSource(), -1))
+            .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
+                .executes(ctx -> showPrayers(
+                    ctx.getSource(),
+                    IntegerArgumentType.getInteger(ctx, "colonyId")
+                ))
+            )
         );
 
         dispatcher.register(root);
@@ -274,5 +286,55 @@ public final class GodsparkCommands {
 
         source.sendSuccess(() -> Component.literal(sb.toString()), false);
         return 1;
+    }
+
+    private static int showPrayers(CommandSourceStack source, int colonyId) {
+        PrayerSeedBank bank = GodsparkMod.PRAYER_SEED_BANK;
+
+        if (bank.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("No Godspark prayers recorded yet."), false);
+            return 1;
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        if (colonyId > 0) {
+            List<PrayerSeed> colonyPrayers = bank.getPrayers(colonyId);
+            if (colonyPrayers.isEmpty()) {
+                source.sendSuccess(() -> Component.literal(
+                    String.format("No prayers recorded for colony #%d.", colonyId)
+                ), false);
+                return 1;
+            }
+
+            String colonyName = colonyPrayers.get(0).colonyName();
+            sb.append(String.format("Prayers for %s (#%d):\n", colonyName, colonyId));
+            for (PrayerSeed seed : colonyPrayers) {
+                sb.append(formatPrayerLine(seed));
+            }
+        } else {
+            sb.append("Godspark prayers:\n");
+            List<PrayerSeed> allPrayers = bank.getAllPrayers();
+            int count = 0;
+            for (PrayerSeed seed : allPrayers) {
+                if (count >= 20) break;
+                sb.append(formatPrayerLine(seed));
+                count++;
+            }
+        }
+
+        source.sendSuccess(() -> Component.literal(sb.toString()), false);
+        return 1;
+    }
+
+    private static String formatPrayerLine(PrayerSeed seed) {
+        return String.format(
+            "  [%s %d][%s] %s (reasons=%s)\n",
+            seed.prayerType().getDisplayName(),
+            seed.intensity(),
+            seed.pressureType().getDisplayName(),
+            seed.content(),
+            String.join(", ", seed.reasonCodes())
+        );
     }
 }

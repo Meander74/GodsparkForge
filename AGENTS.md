@@ -52,6 +52,10 @@ EventGenerator (memory-adjusted thresholds)
       ↓
 EventQueue (6000-tick dedup, 100 max history)
       ↓
+PrayerSeedGenerator (pressures + events + memories → prayer seeds)
+      ↓
+PrayerSeedBank (per-colony storage, dedup by sourceKey, expire, max 20)
+      ↓
 Logs + /godspark commands
 ```
 
@@ -83,7 +87,7 @@ com.godspark
 ├── GodsparkMod.java          — Mod entry point, static service instances
 ├── GodsparkConstants.java    — MOD_ID, VERSION, tick intervals
 ├── command/
-│   └── GodsparkCommands.java — /godspark status|colonies|pressures|events|memories
+│   └── GodsparkCommands.java — /godspark status|colonies|pressures|events|memories|prayers
 ├── event/
 │   └── GodsparkServerEvents.java — Server tick heartbeat, throttling
 ├── memory/
@@ -98,6 +102,11 @@ com.godspark
 │   └── ObservedColony.java   — Tracks snapshot history per colony
 ├── persistence/
 │   └── GodsparkSavedData.java — NBT serialization (v2), backward compat with v1
+├── prayer/
+│   ├── PrayerSeed.java           — Immutable prayer seed record (13 fields)
+│   ├── PrayerSeedBank.java       — Per-colony prayer storage, dedup by sourceKey, expire, max 20
+│   ├── PrayerSeedGenerator.java  — Generates prayer seeds from pressures/events/memories
+│   └── PrayerType.java           — Enum: PLEA, VIGIL, THANKS, LAMENT, HOPE
 ├── pressure/
 │   ├── PressureEngine.java   — Computes 5 pressure types from snapshots
 │   ├── PressureSnapshot.java — Immutable pressure values record
@@ -163,6 +172,8 @@ C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create'a Colony
 /godspark memories          — Show top 20 memories across all colonies
 /godspark memories <colonyId> — Show top 10 memories for specific colony
 /godspark influences        — Show memory threshold adjustments per colony
+/godspark prayers           — Show active prayer seeds across all colonies
+/godspark prayers <colonyId> — Show prayer seeds for specific colony
 ```
 
 ## Development Phases
@@ -175,7 +186,7 @@ C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create'a Colony
 | 3.5B | ✅ DONE | SavedData Persistence — events survive restarts |
 | 4A | ✅ DONE | Memory System — colony memories, pattern detection |
 | 4B | ✅ DONE | Memory Influence — memories affect event thresholds, TRIUMPH memories |
-| 4C | Future | Prayer Seed Generation |
+| 4C | ✅ DONE | Prayer Seed Generation — colony prayer language from state |
 | 5 | Future | AI Reflection — local llama.cpp narrative |
 | 6 | Future | Civilization Evolution — pressures unlock directions |
 
@@ -194,14 +205,14 @@ C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create'a Colony
 - Pressure formulas rebalanced — tune constants (5.0/8.0/6.0 citizens per building) after playtesting
 - Comfort target happiness (7.0) not verified against actual MineColonies API
 - Memory decay not yet implemented — decayRate stored but unused
-- Phase 4A/4B complete — memory system fully operational with influence on event thresholds
-- Phase 4C (Prayer Seed Generation) — not yet started
+- Phase 4C complete — prayer seeds generated from pressures, events, and memories
 - Phase 5 (AI Reflection) — not yet started
 - Phase 6 (Civilization Evolution) — not yet started
 
 ## Current Project State
-- Last commit: 96d45b7 (fix: apply Codex review fixes to Phase 3.5B)
-- Uncommitted work: Memory system (Phase 4A/4B) implemented but not committed
+- Last commit: Phase 4A/4B memory system
+- Prayer seed generation (Phase 4C) implemented: PrayerSeedGenerator, PrayerSeedBank, PrayerType
+- /godspark prayers command available
 - Memory influence: Integrated into EventGenerator, thresholds adjust based on colony memories
 - TRIUMPH memories: Implemented for high-severity resolved events
-- All static services initialized in GodsparkMod: COLONY_OBSERVER, PRESSURE_ENGINE, EVENT_GENERATOR, EVENT_QUEUE, EVENT_STATE_MANAGER, MEMORY_BANK, MEMORY_ENGINE
+- All static services initialized in GodsparkMod: COLONY_OBSERVER, PRESSURE_ENGINE, EVENT_GENERATOR, EVENT_QUEUE, EVENT_STATE_MANAGER, MEMORY_BANK, MEMORY_ENGINE, MEMORY_INFLUENCE, PRAYER_SEED_GENERATOR, PRAYER_SEED_BANK

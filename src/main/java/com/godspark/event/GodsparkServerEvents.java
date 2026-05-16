@@ -4,6 +4,7 @@ import com.godspark.GodsparkMod;
 import com.godspark.GodsparkConstants;
 import com.godspark.memory.ColonyMemory;
 import com.godspark.persistence.GodsparkSavedData;
+import com.godspark.prayer.PrayerSeed;
 import com.godspark.story.StoryEvent;
 import com.godspark.story.EventRecord;
 import net.minecraft.server.MinecraftServer;
@@ -48,8 +49,9 @@ public final class GodsparkServerEvents {
         GodsparkMod.PRESSURE_ENGINE.clear();
         GodsparkMod.EVENT_QUEUE.clear();
         GodsparkMod.EVENT_STATE_MANAGER.clear();
-        GodsparkMod.MEMORY_BANK.clear();
-        tickCounter = 0;
+GodsparkMod.MEMORY_BANK.clear();
+            GodsparkMod.PRAYER_SEED_BANK.clear();
+            tickCounter = 0;
         savedData = null;
         GodsparkMod.LOGGER.info("[Godspark] Static services cleared");
     }
@@ -132,6 +134,32 @@ public final class GodsparkServerEvents {
                         storyEvent.description(),
                         storyEvent.pressureValue(),
                         storyEvent.threshold()
+                    );
+                }
+            }
+
+            GodsparkMod.PRAYER_SEED_BANK.expireOld(server.getTickCount());
+
+            List<PrayerSeed> prayerSeeds = GodsparkMod.PRAYER_SEED_GENERATOR.generate(
+                GodsparkMod.PRESSURE_ENGINE.getSnapshots(),
+                GodsparkMod.COLONY_OBSERVER.getObservedColonies(),
+                GodsparkMod.EVENT_STATE_MANAGER.getActiveEvents(),
+                transitions,
+                GodsparkMod.MEMORY_BANK,
+                GodsparkMod.MEMORY_INFLUENCE,
+                server.getTickCount()
+            );
+
+            for (PrayerSeed seed : prayerSeeds) {
+                if (GodsparkMod.PRAYER_SEED_BANK.offer(seed)) {
+                    GodsparkMod.LOGGER.info(
+                        "[Godspark Prayer] [{} {}][{}] {}: {} (reasons={})",
+                        seed.prayerType().getDisplayName(),
+                        seed.intensity(),
+                        seed.pressureType().getDisplayName(),
+                        seed.colonyName(),
+                        seed.content(),
+                        String.join(", ", seed.reasonCodes())
                     );
                 }
             }
