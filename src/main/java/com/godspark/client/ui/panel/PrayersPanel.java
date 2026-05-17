@@ -19,12 +19,23 @@ public class PrayersPanel extends PanelBase {
             return;
         }
 
+        int selectedColonyId = ensureValidSelection(snap);
+
+        var entries = snap.prayers();
+        if (selectedColonyId != -1) {
+            entries = entries.stream().filter(p -> p.colonyId() == selectedColonyId).toList();
+        }
+        if (entries.isEmpty()) {
+            drawDim(gg, font, "No prayers for this colony.", x, y + 14);
+            return;
+        }
+
         int row = y + 16 - scrollOffset;
-        contentHeight = snap.prayers().size() * 30;
+        contentHeight = entries.size() * 30;
 
         enableScissor(gg, x, y + 16, width, height - 16);
 
-        for (UiPrayerEntry p : snap.prayers()) {
+        for (UiPrayerEntry p : entries) {
             String head = "#" + p.colonyId() + "  [" + p.channel() + " "
                 + p.prayerType() + " " + p.intensity() + "][" + p.pressureType() + "]";
             drawText(gg, font, head, x, row);

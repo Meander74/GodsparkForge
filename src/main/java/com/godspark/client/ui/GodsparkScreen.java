@@ -5,13 +5,17 @@ import com.godspark.client.ui.panel.*;
 import com.godspark.client.ui.widget.GodsparkTabButtonWidget;
 import com.godspark.network.GodsparkNetwork;
 import com.godspark.network.packet.RequestUiSnapshotPacket;
+import com.godspark.network.payload.UiColonyEntry;
+import com.godspark.network.payload.UiSnapshot;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 @OnlyIn(Dist.CLIENT)
@@ -31,7 +35,11 @@ public class GodsparkScreen extends Screen {
 
     private int panelX, panelY, panelWidth, panelHeight;
     private int contentX, contentY, contentWidth, contentHeight;
+    private int filterY;
     private long lastAutoRefreshMillis = 0L;
+    private final List<FilterBtn> filterBtns = new ArrayList<>();
+
+    private record FilterBtn(int colonyId, int x, int y, int w, int h) {}
 
     public GodsparkScreen() {
         super(Component.literal("Godspark Dashboard"));
@@ -47,9 +55,10 @@ public class GodsparkScreen extends Screen {
         panelY = (this.height - panelHeight) / 2;
 
         contentX = panelX + 8;
-        contentY = panelY + 36;
+        filterY = panelY + 32;
+        contentY = filterY + 14;
         contentWidth = panelWidth - 16;
-        contentHeight = panelHeight - 44;
+        contentHeight = panelHeight - (contentY - panelY) - 8;
 
         int tabX = panelX + 8;
         int tabY = panelY + 8;
@@ -102,9 +111,15 @@ public class GodsparkScreen extends Screen {
         gg.fill(panelX, panelY, panelX + 1, panelY + panelHeight, COLOR_BORDER);
         gg.fill(panelX + panelWidth - 1, panelY, panelX + panelWidth, panelY + panelHeight, COLOR_BORDER);
 
+        gg.drawString(this.font, "[EXPERIMENT]",
+            panelX + panelWidth - 6 - this.font.width("[EXPERIMENT]"),
+            panelY + 6, 0xFFFFD700, false);
+
         gg.fill(contentX, contentY, contentX + contentWidth, contentY + contentHeight, COLOR_PANEL);
 
         super.render(gg, mouseX, mouseY, partialTick);
+
+        renderColonyFilter(gg, mouseX, mouseY);
 
         PanelBase panel = panels.get(activeTab);
         if (panel != null) {
@@ -133,8 +148,51 @@ public class GodsparkScreen extends Screen {
         return super.mouseScrolled(mouseX, mouseY, delta);
     }
 
+    private void renderColonyFilter(GuiGraphics gg, int mouseX, int mouseY) {
+        UiSnapshot snap = GodsparkClientState.getSnapshot();
+        filterBtns.clear();
+        if (snap == null || snap.colonies().size() <= 1) {
+            GodsparkClientState.setSelectedColonyId(-1);
+            return;
+        }
+        int fx = contentX;
+        int fy = filterY;
+        int sel = GodsparkClientState.getSelectedColonyId();
+        int allW = font.width("All") + 10;
+        drawFilterBtn(gg, fx, fy, allW, 12, "All", sel == -1, mouseX, mouseY);
+        filterBtns.add(new FilterBtn(-1, fx, fy, allW, 12));
+        fx += allW + 4;
+        for (UiColonyEntry c : snap.colonies()) {
+            String name = c.name();
+            if (font.width(name) > 80) name = font.plainSubstrByWidth(name, 76) + "...";
+            int bw = font.width(name) + 10;
+            if (fx + bw > panelX + panelWidth - 8) break;
+            drawFilterBtn(gg, fx, fy, bw, 12, name, sel == c.colonyId(), mouseX, mouseY);
+            filterBtns.add(new FilterBtn(c.colonyId(), fx, fy, bw, 12));
+            fx += bw + 4;
+        }
+    }
+
+    private void drawFilterBtn(GuiGraphics gg, int x, int y, int w, int h, String label, boolean active, int mx, int my) {
+        boolean hovered = mx >= x && mx <= x + w && my >= y && my <= y + h;
+        int bg = active ? COLOR_ACCENT : hovered ? 0xFF35355A : COLOR_BORDER;
+        gg.fill(x, y, x + w, y + h, bg);
+        gg.drawString(font, label, x + 5, y + 2, active ? 0xFFFFFFFF : COLOR_TEXT, false);
+    }
+
+    private boolean handleFilterClick(double mx, double my) {
+        for (FilterBtn fb : filterBtns) {
+            if (mx >= fb.x && mx <= fb.x + fb.w && my >= fb.y && my <= fb.y + fb.h) {
+                GodsparkClientState.setSelectedColonyId(fb.colonyId);
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (handleFilterClick(mouseX, mouseY)) return true;
         PanelBase panel = panels.get(activeTab);
         if (panel != null && panel.mouseClicked(mouseX, mouseY, button,
             contentX + 6, contentY + 6, contentWidth - 12, contentHeight - 12)) {

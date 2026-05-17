@@ -26,9 +26,16 @@ public class PressuresPanel extends PanelBase {
             return;
         }
 
+        int selectedColonyId = ensureValidSelection(snap);
+
         Map<Integer, List<UiPressureEntry>> grouped = new TreeMap<>();
         for (UiPressureEntry p : snap.pressures()) {
+            if (selectedColonyId != -1 && p.colonyId() != selectedColonyId) continue;
             grouped.computeIfAbsent(p.colonyId(), k -> new ArrayList<>()).add(p);
+        }
+        if (grouped.isEmpty()) {
+            drawDim(gg, font, "No pressure data for this colony.", x, y + 14);
+            return;
         }
 
         int row = y + 16;

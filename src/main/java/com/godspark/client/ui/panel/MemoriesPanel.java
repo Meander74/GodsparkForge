@@ -19,12 +19,23 @@ public class MemoriesPanel extends PanelBase {
             return;
         }
 
+        int selectedColonyId = ensureValidSelection(snap);
+
+        var entries = snap.memories();
+        if (selectedColonyId != -1) {
+            entries = entries.stream().filter(m -> m.colonyId() == selectedColonyId).toList();
+        }
+        if (entries.isEmpty()) {
+            drawDim(gg, font, "No memories for this colony.", x, y + 14);
+            return;
+        }
+
         int row = y + 16 - scrollOffset;
-        contentHeight = snap.memories().size() * 22;
+        contentHeight = entries.size() * 22;
 
         enableScissor(gg, x, y + 16, width, height - 16);
 
-        for (UiMemoryEntry m : snap.memories()) {
+        for (UiMemoryEntry m : entries) {
             String title = "#" + m.colonyId() + "  " + m.memoryType()
                 + " | " + m.pressureType() + " | int " + m.intensity();
             drawText(gg, font, title, x, row);

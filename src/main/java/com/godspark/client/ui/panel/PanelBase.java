@@ -1,6 +1,8 @@
 package com.godspark.client.ui.panel;
 
+import com.godspark.client.GodsparkClientState;
 import com.godspark.client.ui.GodsparkScreen;
+import com.godspark.network.payload.UiSnapshot;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraftforge.api.distmarker.Dist;
@@ -51,5 +53,17 @@ public abstract class PanelBase {
 
     protected void disableScissor(GuiGraphics gg) {
         gg.disableScissor();
+    }
+
+    protected static int ensureValidSelection(UiSnapshot snap) {
+        int sel = GodsparkClientState.getSelectedColonyId();
+        if (sel != -1 && snap != null) {
+            boolean exists = snap.colonies().stream().anyMatch(c -> c.colonyId() == sel);
+            if (!exists) {
+                GodsparkClientState.setSelectedColonyId(-1);
+                return -1;
+            }
+        }
+        return sel;
     }
 }

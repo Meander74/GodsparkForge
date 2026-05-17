@@ -19,12 +19,23 @@ public class EventsPanel extends PanelBase {
             return;
         }
 
+        int selectedColonyId = ensureValidSelection(snap);
+
+        var entries = snap.events();
+        if (selectedColonyId != -1) {
+            entries = entries.stream().filter(e -> e.colonyId() == selectedColonyId).toList();
+        }
+        if (entries.isEmpty()) {
+            drawDim(gg, font, "No events for this colony.", x, y + 14);
+            return;
+        }
+
         int row = y + 16 - scrollOffset;
-        contentHeight = snap.events().size() * 28;
+        contentHeight = entries.size() * 28;
 
         enableScissor(gg, x, y + 16, width, height - 16);
 
-        for (UiEventEntry e : snap.events()) {
+        for (UiEventEntry e : entries) {
             int badgeColor = switch (e.severity()) {
                 case "HIGH" -> 0xFFD96B6B;
                 case "MEDIUM" -> 0xFFD9C76B;
