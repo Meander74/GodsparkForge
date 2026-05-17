@@ -1,0 +1,7 @@
+# Prayer Stone material definition
+newmtl stone
+Ka 0.6 0.5 0.4
+Kd 1.0 1.0 1.0
+Ks 0.2 0.3 0.4
+Ns 32.0
+map_Kd godspark:block/prayer_stone

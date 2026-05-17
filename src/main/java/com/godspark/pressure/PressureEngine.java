@@ -15,6 +15,11 @@ public final class PressureEngine {
     private static final double TARGET_HAPPINESS = 7.0;
 
     private final Map<Integer, PressureSnapshot> snapshots = new HashMap<>();
+    private PressureModifierManager modifierManager;
+
+    public void setModifierManager(PressureModifierManager manager) {
+        this.modifierManager = manager;
+    }
 
     public void compute(Map<Integer, ObservedColony> colonies) {
         snapshots.clear();
@@ -40,6 +45,13 @@ public final class PressureEngine {
             values.put(PressureType.COMFORT, computeComfortPressure(latest.citizenCount(), latest.happiness()));
 
             values.put(PressureType.INDUSTRY, capacityPressure(latest.citizenCount(), latest.industryBuildingCount(), CITIZENS_PER_INDUSTRY_BUILDING));
+
+            if (modifierManager != null) {
+                for (PressureType type : PressureType.values()) {
+                    int base = values.getOrDefault(type, 0);
+                    values.put(type, modifierManager.getModifiedPressure(observed.getColonyId(), type, base));
+                }
+            }
 
             PressureSnapshot snapshot = new PressureSnapshot(
                 observed.getColonyId(),

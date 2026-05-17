@@ -74,6 +74,8 @@ public final class ColonyObserver {
                             getSafeFoodBuildingCount(colony),
                             getSafeHousingCapacity(colony),
                             getSafeIndustryBuildingCount(colony),
+                            getSafeSacredBuildingCount(colony),
+                            getSafeGatheringBuildingCount(colony),
                             getSafeHasActiveRaid(colony),
                             colony.getDimension(),
                             gameTick
@@ -320,13 +322,35 @@ public final class ColonyObserver {
         try {
             Object happiness = invokeAnyNoArg(colony, "getOverallHappiness");
             Double parsed = asFiniteDouble(happiness);
-            if (parsed != null) return parsed;
+            if (parsed != null) {
+                return normalizeHappiness(parsed);
+            }
 
             return 7.0;
         } catch (Exception e) {
             GodsparkMod.LOGGER.debug("[Godspark Observer] Could not get happiness for colony {}", colony.getID(), e);
             return 7.0;
         }
+    }
+
+    private static double normalizeHappiness(double happiness) {
+        if (Double.isNaN(happiness) || Double.isInfinite(happiness)) {
+            return 7.0;
+        }
+
+        if (happiness >= 0.0 && happiness <= 1.0) {
+            return happiness * 10.0;
+        }
+
+        if (happiness < 0.0) {
+            return 0.0;
+        }
+
+        if (happiness > 10.0) {
+            return 10.0;
+        }
+
+        return happiness;
     }
 
     private boolean getSafeHasActiveRaid(IColony colony) {
@@ -392,78 +416,76 @@ public final class ColonyObserver {
         return building.getClass().getName().toLowerCase(Locale.ROOT);
     }
 
-    private boolean containsAny(String value, String... needles) {
-        if (value == null || value.isBlank()) return false;
-
-        String normalized = value.toLowerCase(Locale.ROOT);
-        for (String needle : needles) {
-            if (normalized.contains(needle.toLowerCase(Locale.ROOT))) return true;
+    private int countByCategory(IColony colony, BuildingCategory... categories) {
+        int count = 0;
+        for (Object building : getBuildingValues(colony)) {
+            String key = getBuildingTypeKey(building);
+            if (BuildingClassifier.matches(key, categories)) {
+                count++;
+            }
         }
-        return false;
+        return count;
     }
 
     private int getSafeWarehouseCount(IColony colony) {
-        int count = 0;
         try {
-            for (Object building : getBuildingValues(colony)) {
-                String key = getBuildingTypeKey(building);
-                if (containsAny(key, "warehouse")) count++;
-            }
+            return countByCategory(colony, BuildingCategory.WAREHOUSE);
         } catch (Exception e) {
             GodsparkMod.LOGGER.warn("[Godspark Observer] Could not count warehouses for colony {}: {}", colony.getID(), e.getMessage());
+            return 0;
         }
-        return count;
     }
 
     private int getSafeGuardCount(IColony colony) {
-        int count = 0;
         try {
-            for (Object building : getBuildingValues(colony)) {
-                String key = getBuildingTypeKey(building);
-                if (containsAny(key, "guardtower", "barracks", "barrackstower", "guard_tower", "barracks_tower", "combat", "knight", "ranger")) {
-                    count++;
-                }
-            }
+            return countByCategory(colony, BuildingCategory.SECURITY);
         } catch (Exception e) {
             GodsparkMod.LOGGER.warn("[Godspark Observer] Could not get guard count for colony {}", colony.getID(), e);
+            return 0;
         }
-        return count;
     }
 
     private int getSafeFoodBuildingCount(IColony colony) {
-        int count = 0;
         try {
-            for (Object building : getBuildingValues(colony)) {
-                String key = getBuildingTypeKey(building);
-                if (containsAny(key,
-                    "restaurant", "cook", "kitchen", "farmer", "fisher", "fisherman",
-                    "bakery", "baker", "chickenherder", "cowboy", "shepherd",
-                    "swineherder", "rabbit")) {
-                    count++;
-                }
-            }
+            return countByCategory(colony, BuildingCategory.FOOD);
         } catch (Exception e) {
             GodsparkMod.LOGGER.warn("[Godspark Observer] Could not get food building count for colony {}", colony.getID(), e);
+            return 0;
         }
-        return count;
     }
 
     private int getSafeIndustryBuildingCount(IColony colony) {
-        int count = 0;
         try {
+            return countByCategory(colony, BuildingCategory.INDUSTRY);
+        } catch (Exception e) {
+            GodsparkMod.LOGGER.warn("[Godspark Observer] Could not get industry building count for colony {}", colony.getID(), e);
+            return 0;
+        }
+    }
+
+    private int getSafeSacredBuildingCount(IColony colony) {
+        try {
+            return countByCategory(colony, BuildingCategory.SACRED);
+        } catch (Exception e) {
+            GodsparkMod.LOGGER.warn("[Godspark Observer] Could not get sacred building count for colony {}", colony.getID(), e);
+            return 0;
+        }
+    }
+
+    private int getSafeGatheringBuildingCount(IColony colony) {
+        try {
+            int count = 0;
             for (Object building : getBuildingValues(colony)) {
                 String key = getBuildingTypeKey(building);
-                if (containsAny(key,
-                    "builder", "miner", "lumberjack", "sawmill", "stonemason",
-                    "stonesmeltery", "crusher", "sifter", "blacksmith", "mechanic",
-                    "smeltery", "composter", "warehouse", "deliveryman", "courier")) {
+                if (BuildingClassifier.isGatheringPlace(key)) {
                     count++;
                 }
             }
+            return count;
         } catch (Exception e) {
-            GodsparkMod.LOGGER.warn("[Godspark Observer] Could not get industry building count for colony {}", colony.getID(), e);
+            GodsparkMod.LOGGER.warn("[Godspark Observer] Could not get gathering building count for colony {}", colony.getID(), e);
+            return 0;
         }
-        return count;
     }
 
     /* ==================== ACCESSORS ==================== */

@@ -9,6 +9,7 @@ public record PrayerSeed(
     int colonyId,
     String colonyName,
     PrayerType prayerType,
+    PrayerChannel channel,
     PressureType pressureType,
     EventSeverity severity,
     int pressureValue,
@@ -19,4 +20,12 @@ public record PrayerSeed(
     long createdAtTick,
     long expiresAtTick,
     String sourceKey
-) {}
+) {
+    public boolean isPublicPrayer() {
+        return channel.isPublic();
+    }
+
+    public boolean isMiracleEligible() {
+        return channel.isMiracleEligible();
+    }
+}

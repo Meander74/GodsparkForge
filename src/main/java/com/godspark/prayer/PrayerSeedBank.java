@@ -3,6 +3,7 @@ package com.godspark.prayer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -15,10 +16,24 @@ public final class PrayerSeedBank {
     public boolean offer(PrayerSeed seed) {
         List<PrayerSeed> colonyPrayers = prayersByColony.computeIfAbsent(seed.colonyId(), k -> new ArrayList<>());
 
-        for (PrayerSeed existing : colonyPrayers) {
-            if (existing.sourceKey().equals(seed.sourceKey())) {
-                return false;
+        boolean blockedByExisting = false;
+        Iterator<PrayerSeed> iterator = colonyPrayers.iterator();
+        while (iterator.hasNext()) {
+            PrayerSeed existing = iterator.next();
+            if (!existing.sourceKey().equals(seed.sourceKey())) {
+                continue;
             }
+
+            if (shouldReplaceExisting(existing, seed)) {
+                iterator.remove();
+            } else {
+                blockedByExisting = true;
+            }
+            break;
+        }
+
+        if (blockedByExisting) {
+            return false;
         }
 
         colonyPrayers.add(seed);
@@ -28,6 +43,23 @@ public final class PrayerSeedBank {
         }
 
         return true;
+    }
+
+    private static boolean shouldReplaceExisting(PrayerSeed existing, PrayerSeed candidate) {
+        if (!existing.sourceKey().equals(candidate.sourceKey())) {
+            return false;
+        }
+
+        if (candidate.channel().isPublic() && !existing.channel().isPublic()) {
+            return true;
+        }
+
+        if (!candidate.channel().isPublic() && existing.channel().isPublic()) {
+            return false;
+        }
+
+        return candidate.intensity() >= existing.intensity()
+            || candidate.expiresAtTick() > existing.expiresAtTick();
     }
 
     public List<PrayerSeed> getPrayers(int colonyId) {

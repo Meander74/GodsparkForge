@@ -40,6 +40,16 @@ Use `context-mode_ctx_execute(language: "shell", code: "grep ...")` in sandbox.
 4. **WEB**: `context-mode_ctx_fetch_and_index(url, source)` then `context-mode_ctx_search(queries)` — raw HTML never enters context.
 5. **INDEX**: `context-mode_ctx_index(content, source)` — store in FTS5 for later search.
 
+## Graphify Bridge
+
+Graphify knowledge graph is pre-indexed into context-mode FTS5 for unified search:
+- `source: "graphify-report"` — Architecture report, community analysis, node summaries
+- `source: "graphify-graph"` — Full graph structure (nodes, edges, relationships)
+- `source: "graphify-ast"` — AST-level code relationships
+- `source: "graphify-manifest"` — Codebase metadata, file inventory
+
+**Routing**: For architecture/component relationship questions, add `source: "graphify-graph"` to `ctx_search`. For code-level dependency traces, add `source: "graphify-ast"`. Rebuild graph with `graphify update` after significant code changes, then re-index.
+
 ## Parallel I/O batches
 
 For multi-URL fetches or multi-API calls, **always** include `concurrency: N` (1-8):
@@ -103,7 +113,9 @@ MineColonies → ColonyObserver → PressureEngine → EventGenerator
                                                       ↓
                                             EventStateManager → MemoryEngine → MemoryBank
                                                       ↓                        ↓
-                                            MemoryInfluence → PrayerSeedGenerator → PrayerSeedBank
+                                            MemoryInfluence → PersonalityInfluence → PrayerSeedGenerator → PrayerSeedBank
+                                                      ↓                                    ↓
+                                            PersonalityEngine                    SacredSiteManager (Prayer Stone)
                                                       ↓
                                                  EventQueue → /godspark commands
 ```
@@ -123,14 +135,18 @@ Test instance: `C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create
 /godspark memories    — Show colony memories
 /godspark influences  — Show memory threshold adjustments
 /godspark prayers     — Show active prayer seeds
+/godspark personality — Show colony personality traits + prayer tone
+/godspark miracles    — Show active pressure modifiers
+/godspark answer      — Player divine answer (permission 2)
+/godspark ui          — Open debug dashboard
 ```
 
 ## Available Tools
-- **graphify** skill — Query the codebase knowledge graph:
-  - Graph: `C:\Users\Suttawat\GodsparkForge\graphify-out` (185 nodes, 377 edges, 17 communities)
-  - Path: `/graphify path NodeA NodeB --path C:\Users\Suttawat\GodsparkForge`
-  - Explain: `/graphify explain NodeName --path C:\Users\Suttawat\GodsparkForge`
-  - Rebuild: `graphify update "C:\Users\Suttawat\GodsparkForge"` (after code changes)
+- **graphify → context-mode bridge** — Codebase knowledge graph indexed into FTS5:
+  - `ctx_search(queries: ["..."], source: "graphify-graph")` — architecture relationships
+  - `ctx_search(queries: ["..."], source: "graphify-ast")` — code-level dependencies
+  - `ctx_search(queries: ["..."], source: "graphify-report")` — community summaries
+  - Rebuild: `graphify update "C:\Users\Suttawat\GodsparkForge"` then re-index after code changes
 - **context-mode** — Context window optimizer MCP server:
   - `ctx stats` — Show context savings
   - `ctx doctor` — Run diagnostics
@@ -139,10 +155,13 @@ Test instance: `C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create
 
 ## TODOs
 - Building classification uses string matching (need proper type checks)
+- Sacred keywords: altar/sanctuary/oracle/ritual/rune/totem/spirit/divine/sacred/reliquary/obelisk; graveyard moved to gathering-only
+- CHURCH threshold fix: score >= 4 for SHRINE (was >= 3)
 - Pressure formulas need tuning with real data
 - Memory decay not implemented (decayRate stored but unused)
-- Phase 5 AI Reflection not started
-- Phase 6 Civilization Evolution not started
+- Phase 5D.2: Light World Effects not started
+- Phase 6B: Colony Intentions not started
+- Phase 6C: Civilization Evolution not started
 
 ## Reference
 Detailed architecture, pressure formulas, package structure, design decisions: `docs/godspark-reference.md` (indexed via context-mode — search with `context-mode_ctx_search` before reading)

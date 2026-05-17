@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " T ",
+    " D ",
+    " S "
+  ],
+  "key": {
+    "T": {
+      "item": "minecraft:torch"
+    },
+    "D": {
+      "item": "minecraft:dandelion"
+    },
+    "S": {
+      "item": "minecraft:smooth_stone"
+    }
+  },
+  "result": {
+    "item": "godspark:prayer_stone",
+    "count": 1
+  }
+}

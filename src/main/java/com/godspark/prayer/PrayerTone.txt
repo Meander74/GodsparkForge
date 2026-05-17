@@ -1,0 +1,65 @@
+package com.godspark.prayer;
+
+import com.godspark.personality.PersonalityTrait;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public enum PrayerTone {
+    DEVOUT("Devout", 2, List.of("reverent", "holy", "devoted", "faithful", "blessed")),
+    FEARFUL("Fearful", 1, List.of("trembling", "anxious", "quiet", "whispered", "uneasy")),
+    DEFIANT("Defiant", 3, List.of("fierce", "unbroken", "resolute", "unyielding", "bold")),
+    MOURNFUL("Mournful", 1, List.of("sorrowful", "grieving", "heavy", "tearful", "lamenting")),
+    GRATEFUL("Grateful", 0, List.of("thankful", "joyful", "grateful", "blessed", "warm")),
+    HOPEFUL("Hopeful", 1, List.of("hopeful", "bright", "gentle", "steadfast", "patient")),
+    STOIC("Stoic", 0, List.of("steady", "enduring", "quiet", "resolute", "unshaken")),
+    URGENT("Urgent", 3, List.of("desperate", "pressing", "fervent", "immediate", "cries"));
+
+    private static final Map<PersonalityTrait, PrayerTone> TRAIT_TO_TONE = new HashMap<>();
+
+    static {
+        TRAIT_TO_TONE.put(PersonalityTrait.AGGRESSIVE, DEFIANT);
+        TRAIT_TO_TONE.put(PersonalityTrait.PEACEFUL, HOPEFUL);
+        TRAIT_TO_TONE.put(PersonalityTrait.CAUTIOUS, FEARFUL);
+        TRAIT_TO_TONE.put(PersonalityTrait.RESILIENT, STOIC);
+        TRAIT_TO_TONE.put(PersonalityTrait.TRADE_FOCUSED, HOPEFUL);
+        TRAIT_TO_TONE.put(PersonalityTrait.ISOLATIONIST, FEARFUL);
+        TRAIT_TO_TONE.put(PersonalityTrait.EXPANSIONIST, DEFIANT);
+        TRAIT_TO_TONE.put(PersonalityTrait.SPIRITUAL, DEVOUT);
+        TRAIT_TO_TONE.put(PersonalityTrait.INDUSTRIAL, STOIC);
+        TRAIT_TO_TONE.put(PersonalityTrait.COMMUNAL, GRATEFUL);
+        TRAIT_TO_TONE.put(PersonalityTrait.AGRARIAN, GRATEFUL);
+    }
+
+    private final String displayName;
+    private final int intensityMod;
+    private final List<String> adjectives;
+
+    PrayerTone(String displayName, int intensityMod, List<String> adjectives) {
+        this.displayName = displayName;
+        this.intensityMod = intensityMod;
+        this.adjectives = adjectives;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public int getIntensityMod() {
+        return intensityMod;
+    }
+
+    public List<String> getAdjectives() {
+        return adjectives;
+    }
+
+    public static PrayerTone fromTrait(PersonalityTrait trait) {
+        return TRAIT_TO_TONE.getOrDefault(trait, STOIC);
+    }
+
+    public String pickAdjective(int seed) {
+        if (adjectives.isEmpty()) return "quiet";
+        return adjectives.get(Math.abs(seed) % adjectives.size());
+    }
+}

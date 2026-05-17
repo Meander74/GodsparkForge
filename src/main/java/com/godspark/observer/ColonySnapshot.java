@@ -16,6 +16,8 @@ public record ColonySnapshot(
     int foodBuildingCount,
     int housingCapacity,
     int industryBuildingCount,
+    int sacredBuildingCount,
+    int gatheringBuildingCount,
     boolean hasActiveRaid,
     ResourceKey<Level> dimension,
     long gameTick

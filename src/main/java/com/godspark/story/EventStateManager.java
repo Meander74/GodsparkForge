@@ -12,8 +12,8 @@ import java.util.Map;
 public final class EventStateManager {
 
     private static final int PERSISTENT_THRESHOLD = 3;
-    private static final int RESOLVE_AFTER_MISSING_CYCLES = 2;
-    private static final int MAX_RESOLVED_RECORDS = 100;
+    private static final int RESOLVE_AFTER_MISSING_CYCLES = 3;
+    private static final int MAX_RESOLVED_RECORDS = 500;
 
     private final Map<EventKey, EventRecord> activeEvents = new HashMap<>();
     private final Deque<EventRecord> resolvedEvents = new ArrayDeque<>();
@@ -50,10 +50,6 @@ public final class EventStateManager {
                     ? EventState.PERSISTENT
                     : EventState.ACTIVE;
 
-                if (newState != existing.state()) {
-                    transitions.add(existing);
-                }
-
                 EventRecord updated = new EventRecord(
                     currentEvent,
                     newState,
@@ -64,6 +60,10 @@ public final class EventStateManager {
                     -1
                 );
                 activeEvents.put(key, updated);
+
+                if (newState != existing.state()) {
+                    transitions.add(updated);
+                }
             }
         }
 
