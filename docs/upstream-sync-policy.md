@@ -57,7 +57,7 @@ git commit
 |------|--------|-------|
 | `README.md` | GodsparkNeo branding | B |
 | `AGENTS.md` | Project agent briefing | B |
-| *(none yet)* | | |
+| `src/main/java/com/minecolonies/core/MineColonies.java` | Added `GodsparkNeoBootstrap.init()` call (1 line) | C |
 
 ## Branches
 

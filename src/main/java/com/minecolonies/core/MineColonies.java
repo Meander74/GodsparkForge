@@ -23,6 +23,7 @@ import com.minecolonies.api.sounds.ModSoundEvents;
 import com.minecolonies.api.tileentities.MinecoloniesTileEntities;
 import com.minecolonies.api.util.IItemHandlerCapProvider;
 import com.minecolonies.api.util.Log;
+import com.godsparkneo.GodsparkNeoBootstrap;
 import com.minecolonies.api.util.constant.Constants;
 import com.minecolonies.api.util.constant.SchematicTagConstants;
 import com.minecolonies.apiimp.ClientMinecoloniesAPIImpl;
@@ -196,6 +197,8 @@ public class MineColonies
 
         SurvivalBlueprintHandlers.registerHandler(new SurvivalHandler());
         SurvivalBlueprintHandlers.registerHandler(new SuppliesHandler());
+
+        GodsparkNeoBootstrap.init();
 
         logIncompatibilities();
     }
