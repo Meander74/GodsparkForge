@@ -2,17 +2,14 @@ package com.godsparkneo.export;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.godsparkneo.export.dto.*;
 import com.minecolonies.api.colony.ICitizenData;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.buildings.IBuilding;
-import com.minecolonies.api.colony.buildings.views.IBuildingView;
 import com.minecolonies.api.colony.workorders.IWorkOrder;
 import com.minecolonies.api.entity.citizen.Skill;
 import com.minecolonies.api.entity.citizen.VisibleCitizenStatus;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
-import org.jetbrains.annotations.Nullable;
+import net.minecraft.core.BlockPos;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,6 +25,9 @@ public final class ColonyStateExporter {
             .disableHtmlEscaping()
             .create();
 
+    private static final DateTimeFormatter FILENAME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS").withZone(ZoneOffset.UTC);
+
     private ColonyStateExporter() {}
 
     public static ExportResult export(IColony colony, Path outputDir) {
@@ -36,45 +36,42 @@ public final class ColonyStateExporter {
             ColonySnapshot snapshot = buildSnapshot(colony);
             String json = GSON.toJson(snapshot);
             String filename = String.format("colony-%d-%s.json",
-                    colony.getID(),
-                    DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneOffset.UTC)
-                            .format(Instant.now())
-                            .replace(":", "-"));
+                    colony.getID(), FILENAME_FORMATTER.format(Instant.now()));
             Path filePath = outputDir.resolve(filename);
             Files.writeString(filePath, json);
             int citizenCount = snapshot.getCitizens() != null ? snapshot.getCitizens().size() : 0;
             int buildingCount = snapshot.getBuildings() != null ? snapshot.getBuildings().size() : 0;
             int workOrderCount = snapshot.getWorkOrders() != null ? snapshot.getWorkOrders().size() : 0;
             return new ExportResult(true, filePath.toString(), String.format(
-                    "Colony '%s' exported: %d citizens, %d buildings, %d work orders",
-                    colony.getName(), citizenCount, buildingCount, workOrderCount));
+                    "Colony '%s' exported: %d citizens, %d buildings, %d work orders -> %s",
+                    colony.getName(), citizenCount, buildingCount, workOrderCount, filePath.getFileName()));
         } catch (Exception e) {
             return new ExportResult(false, null, "Export failed: " + e.getMessage());
         }
     }
 
     private static ColonySnapshot buildSnapshot(IColony colony) {
-        ColonyData colonyData = buildColonyData(colony);
-        List<CitizenData> citizens = buildCitizenList(colony);
-        List<BuildingData> buildings = buildBuildingList(colony);
-        List<WorkOrderData> workOrders = buildWorkOrderList(colony);
-        ThreatData threats = buildThreatData(colony);
-        ResourceSummaryData resources = buildResourceSummary(colony);
+        ColonyExport colonyData = buildColonyExport(colony);
+        List<CitizenExport> citizens = buildCitizenList(colony);
+        List<BuildingExport> buildings = buildBuildingList(colony);
+        List<WorkOrderExport> workOrders = buildWorkOrderList(colony);
+        ThreatExport threats = buildThreatExport(colony);
+        ResourceSummaryExport resources = buildResourceSummary(colony);
         return new ColonySnapshot(colonyData, citizens, buildings, workOrders, threats, resources);
     }
 
-    private static ColonyData buildColonyData(IColony colony) {
+    private static ColonyExport buildColonyExport(IColony colony) {
         String dimension = Optional.ofNullable(colony.getDimension())
                 .map(Object::toString)
                 .orElse("unknown");
         String state = Optional.ofNullable(colony.getState())
                 .map(Object::toString)
                 .orElse("UNKNOWN");
-        return new ColonyData(
+        return new ColonyExport(
                 colony.getID(),
                 colony.getName(),
                 dimension,
-                BlockPosData.from(colony.getCenter()),
+                BlockPosExport.from(colony.getCenter()),
                 state,
                 colony.getOverallHappiness(),
                 colony.isColonyUnderAttack(),
@@ -85,19 +82,19 @@ public final class ColonyStateExporter {
                 colony.getWorkManager().getWorkOrders().size());
     }
 
-    private static List<CitizenData> buildCitizenList(IColony colony) {
-        List<CitizenData> result = new ArrayList<>();
+    private static List<CitizenExport> buildCitizenList(IColony colony) {
+        List<CitizenExport> result = new ArrayList<>();
         for (ICitizenData citizen : colony.getCitizenManager().getCitizens()) {
             if (citizen == null) continue;
             try {
-                result.add(buildCitizenData(citizen));
+                result.add(buildCitizenExport(citizen));
             } catch (Exception ignored) {
             }
         }
         return result;
     }
 
-    private static CitizenData buildCitizenData(ICitizenData citizen) {
+    private static CitizenExport buildCitizenExport(ICitizenData citizen) {
         String jobName = "unemployed";
         if (citizen.getJob() != null && citizen.getJob().getJobRegistryEntry() != null) {
             jobName = citizen.getJob().getJobRegistryEntry().getKey().getPath();
@@ -141,14 +138,14 @@ public final class ColonyStateExporter {
             }
         } catch (Exception ignored) {}
 
-        BlockPosData homePos = citizen.getHomeBuilding() != null
-                ? BlockPosData.from(citizen.getHomeBuilding().getPosition())
+        BlockPosExport homePos = citizen.getHomeBuilding() != null
+                ? BlockPosExport.from(citizen.getHomeBuilding().getPosition())
                 : null;
-        BlockPosData workPos = citizen.getWorkBuilding() != null
-                ? BlockPosData.from(citizen.getWorkBuilding().getPosition())
+        BlockPosExport workPos = citizen.getWorkBuilding() != null
+                ? BlockPosExport.from(citizen.getWorkBuilding().getPosition())
                 : null;
 
-        return new CitizenData(
+        return new CitizenExport(
                 citizen.getId(), citizen.getName(), citizen.isFemale(), citizen.isChild(),
                 citizen.getSaturation(), health, maxHealth,
                 happiness, jobName, citizen.isIdleAtJob(),
@@ -157,20 +154,20 @@ public final class ColonyStateExporter {
                 skills, foodDiversity, foodQuality);
     }
 
-    private static List<BuildingData> buildBuildingList(IColony colony) {
-        List<BuildingData> result = new ArrayList<>();
-        for (Map.Entry<net.minecraft.core.BlockPos, IBuilding> entry :
+    private static List<BuildingExport> buildBuildingList(IColony colony) {
+        List<BuildingExport> result = new ArrayList<>();
+        for (Map.Entry<BlockPos, IBuilding> entry :
                 colony.getServerBuildingManager().getBuildings().entrySet()) {
             IBuilding building = entry.getValue();
             if (building == null) continue;
             try {
-                result.add(buildBuildingData(building));
+                result.add(buildBuildingExport(building));
             } catch (Exception ignored) {}
         }
         return result;
     }
 
-    private static BuildingData buildBuildingData(IBuilding building) {
+    private static BuildingExport buildBuildingExport(IBuilding building) {
         String type = "unknown";
         if (building.getBuildingType() != null && building.getBuildingType().getRegistryName() != null) {
             type = building.getBuildingType().getRegistryName().toString();
@@ -181,8 +178,8 @@ public final class ColonyStateExporter {
                 .map(ICitizenData::getId)
                 .collect(Collectors.toList());
 
-        return new BuildingData(
-                BlockPosData.from(building.getPosition()),
+        return new BuildingExport(
+                BlockPosExport.from(building.getPosition()),
                 type,
                 building.getBuildingDisplayName(),
                 building.getBuildingLevel(),
@@ -193,35 +190,35 @@ public final class ColonyStateExporter {
                 building.getStructurePack());
     }
 
-    private static List<WorkOrderData> buildWorkOrderList(IColony colony) {
-        List<WorkOrderData> result = new ArrayList<>();
+    private static List<WorkOrderExport> buildWorkOrderList(IColony colony) {
+        List<WorkOrderExport> result = new ArrayList<>();
         for (IWorkOrder wo : colony.getWorkManager().getWorkOrders().values()) {
             if (wo == null) continue;
             try {
-                result.add(buildWorkOrderData(wo));
+                result.add(buildWorkOrderExport(wo));
             } catch (Exception ignored) {}
         }
         return result;
     }
 
-    private static WorkOrderData buildWorkOrderData(IWorkOrder wo) {
+    private static WorkOrderExport buildWorkOrderExport(IWorkOrder wo) {
         String type = wo.getWorkOrderType() != null ? wo.getWorkOrderType().name() : "UNKNOWN";
         boolean isClaimed = false;
-        BlockPosData claimedBy = null;
+        BlockPosExport claimedBy = null;
         try {
             isClaimed = wo.isClaimed();
-            claimedBy = BlockPosData.from(wo.getClaimedBy());
+            claimedBy = BlockPosExport.from(wo.getClaimedBy());
         } catch (Exception ignored) {}
 
-        return new WorkOrderData(
+        return new WorkOrderExport(
                 wo.getID(), type, wo.getPriority(),
-                BlockPosData.from(wo.getLocation()),
+                BlockPosExport.from(wo.getLocation()),
                 wo.getCurrentLevel(), wo.getTargetLevel(),
                 isClaimed, claimedBy,
                 wo.getStructurePath(), wo.getStructurePack());
     }
 
-    private static ThreatData buildThreatData(IColony colony) {
+    private static ThreatExport buildThreatExport(IColony colony) {
         boolean isRaided = false;
         boolean willRaidTonight = false;
         int nightsSinceLastRaid = -1;
@@ -248,17 +245,17 @@ public final class ColonyStateExporter {
             }
         } catch (Exception ignored) {}
 
-        return new ThreatData(isRaided, willRaidTonight, nightsSinceLastRaid, colonyRaidLevel, activeEventIds);
+        return new ThreatExport(isRaided, willRaidTonight, nightsSinceLastRaid, colonyRaidLevel, activeEventIds);
     }
 
-    private static ResourceSummaryData buildResourceSummary(IColony colony) {
+    private static ResourceSummaryExport buildResourceSummary(IColony colony) {
         int warehouseCount = 0;
         try {
             var warehouses = colony.getServerBuildingManager().getWareHouses();
             warehouseCount = warehouses != null ? warehouses.size() : 0;
         } catch (Exception ignored) {}
 
-        return new ResourceSummaryData(warehouseCount, 0, 0);
+        return new ResourceSummaryExport(warehouseCount, 0, 0);
     }
 
     public record ExportResult(boolean success, String filePath, String message) {}

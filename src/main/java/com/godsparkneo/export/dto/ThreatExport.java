@@ -1,17 +1,17 @@
-package com.godsparkneo.export;
+package com.godsparkneo.export.dto;
 
 import java.util.List;
 
-public class ThreatData {
+public class ThreatExport {
     private final boolean isRaided;
     private final boolean willRaidTonight;
     private final int nightsSinceLastRaid;
     private final int colonyRaidLevel;
     private final List<Integer> activeEventIds;
 
-    public ThreatData(boolean isRaided, boolean willRaidTonight,
-                      int nightsSinceLastRaid, int colonyRaidLevel,
-                      List<Integer> activeEventIds) {
+    public ThreatExport(boolean isRaided, boolean willRaidTonight,
+                        int nightsSinceLastRaid, int colonyRaidLevel,
+                        List<Integer> activeEventIds) {
         this.isRaided = isRaided;
         this.willRaidTonight = willRaidTonight;
         this.nightsSinceLastRaid = nightsSinceLastRaid;

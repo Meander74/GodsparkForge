@@ -1,10 +1,10 @@
-package com.godsparkneo.export;
+package com.godsparkneo.export.dto;
 
-public class ColonyData {
+public class ColonyExport {
     private final int id;
     private final String name;
     private final String dimension;
-    private final BlockPosData center;
+    private final BlockPosExport center;
     private final String state;
     private final double overallHappiness;
     private final boolean isUnderAttack;
@@ -13,10 +13,10 @@ public class ColonyData {
     private final int buildingCount;
     private final int workOrderCount;
 
-    public ColonyData(int id, String name, String dimension, BlockPosData center,
-                      String state, double overallHappiness, boolean isUnderAttack,
-                      int lastContactInHours, int currentCitizens, int maxCitizens,
-                      int buildingCount, int workOrderCount) {
+    public ColonyExport(int id, String name, String dimension, BlockPosExport center,
+                        String state, double overallHappiness, boolean isUnderAttack,
+                        int lastContactInHours, int currentCitizens, int maxCitizens,
+                        int buildingCount, int workOrderCount) {
         this.id = id;
         this.name = name;
         this.dimension = dimension;
@@ -33,7 +33,7 @@ public class ColonyData {
     public int getId() { return id; }
     public String getName() { return name; }
     public String getDimension() { return dimension; }
-    public BlockPosData getCenter() { return center; }
+    public BlockPosExport getCenter() { return center; }
     public String getState() { return state; }
     public double getOverallHappiness() { return overallHappiness; }
     public boolean isUnderAttack() { return isUnderAttack; }

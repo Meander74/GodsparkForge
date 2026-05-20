@@ -1,9 +1,9 @@
-package com.godsparkneo.export;
+package com.godsparkneo.export.dto;
 
 import java.util.List;
 
-public class BuildingData {
-    private final BlockPosData id;
+public class BuildingExport {
+    private final BlockPosExport id;
     private final String type;
     private final String displayName;
     private final int level;
@@ -13,10 +13,10 @@ public class BuildingData {
     private final List<Integer> assignedCitizens;
     private final String structurePack;
 
-    public BuildingData(BlockPosData id, String type, String displayName,
-                        int level, int maxLevel, boolean isBuilt,
-                        boolean isPendingConstruction, List<Integer> assignedCitizens,
-                        String structurePack) {
+    public BuildingExport(BlockPosExport id, String type, String displayName,
+                          int level, int maxLevel, boolean isBuilt,
+                          boolean isPendingConstruction, List<Integer> assignedCitizens,
+                          String structurePack) {
         this.id = id;
         this.type = type;
         this.displayName = displayName;
@@ -28,7 +28,7 @@ public class BuildingData {
         this.structurePack = structurePack;
     }
 
-    public BlockPosData getId() { return id; }
+    public BlockPosExport getId() { return id; }
     public String getType() { return type; }
     public String getDisplayName() { return displayName; }
     public int getLevel() { return level; }

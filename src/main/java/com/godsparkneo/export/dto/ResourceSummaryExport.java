@@ -1,11 +1,11 @@
-package com.godsparkneo.export;
+package com.godsparkneo.export.dto;
 
-public class ResourceSummaryData {
+public class ResourceSummaryExport {
     private final int warehouseCount;
     private final FoodSummary food;
     private final String note;
 
-    public ResourceSummaryData(int warehouseCount, int totalFoodItems, int foodDiversity) {
+    public ResourceSummaryExport(int warehouseCount, int totalFoodItems, int foodDiversity) {
         this.warehouseCount = warehouseCount;
         this.food = new FoodSummary(totalFoodItems, foodDiversity);
         this.note = "Detailed warehouse inventory deferred to future phases";

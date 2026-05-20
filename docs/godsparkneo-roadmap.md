@@ -15,14 +15,17 @@
 - [x] Create docs/ with architecture, roadmap, legacy port map, upstream sync policy
 - [ ] Tag `godsparkneo-phase-b-docs-complete`
 
-## Phase C — Read-Only State Exporter
+## Phase C — Read-Only State Exporter ✅
 
-- [ ] New package `com.godsparkneo.export`
-- [ ] Colony JSON export via command or debug endpoint
-- [ ] Direct MineColonies API (no reflection)
-- [ ] Throttled, not every tick
-- [ ] Handles missing data safely
-- [ ] Tag `feature/state-exporter`
+- [x] New package `com.godsparkneo.export`
+- [x] `/godspark export <colonyId>` command (OP level 2)
+- [x] Direct MineColonies API (no reflection)
+- [x] Versioned JSON output (schema v1, UTC timestamp)
+- [x] Colony metadata, citizens (job, skills, happiness, food stats), buildings, work orders, threats, resource summary
+- [x] Defensive null handling for all data paths
+- [x] File output only (no JSON in chat)
+- [x] Build passes: `BUILD SUCCESSFUL`
+- [x] Tag `godsparkneo-phase-c-state-exporter`
 
 ## Phase D — Port Deterministic Pressure / Memory / Prayer
 

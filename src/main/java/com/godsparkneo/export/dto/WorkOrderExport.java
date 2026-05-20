@@ -1,21 +1,21 @@
-package com.godsparkneo.export;
+package com.godsparkneo.export.dto;
 
-public class WorkOrderData {
+public class WorkOrderExport {
     private final int id;
     private final String type;
     private final int priority;
-    private final BlockPosData location;
+    private final BlockPosExport location;
     private final int currentLevel;
     private final int targetLevel;
     private final boolean isClaimed;
-    private final BlockPosData claimedByBuilding;
+    private final BlockPosExport claimedByBuilding;
     private final String structurePath;
     private final String structurePack;
 
-    public WorkOrderData(int id, String type, int priority,
-                         BlockPosData location, int currentLevel, int targetLevel,
-                         boolean isClaimed, BlockPosData claimedByBuilding,
-                         String structurePath, String structurePack) {
+    public WorkOrderExport(int id, String type, int priority,
+                           BlockPosExport location, int currentLevel, int targetLevel,
+                           boolean isClaimed, BlockPosExport claimedByBuilding,
+                           String structurePath, String structurePack) {
         this.id = id;
         this.type = type;
         this.priority = priority;
@@ -31,11 +31,11 @@ public class WorkOrderData {
     public int getId() { return id; }
     public String getType() { return type; }
     public int getPriority() { return priority; }
-    public BlockPosData getLocation() { return location; }
+    public BlockPosExport getLocation() { return location; }
     public int getCurrentLevel() { return currentLevel; }
     public int getTargetLevel() { return targetLevel; }
     public boolean isClaimed() { return isClaimed; }
-    public BlockPosData getClaimedByBuilding() { return claimedByBuilding; }
+    public BlockPosExport getClaimedByBuilding() { return claimedByBuilding; }
     public String getStructurePath() { return structurePath; }
     public String getStructurePack() { return structurePack; }
 }
