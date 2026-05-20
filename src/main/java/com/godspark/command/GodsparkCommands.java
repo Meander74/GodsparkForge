@@ -13,6 +13,8 @@ import com.godspark.divine.IntentType;
 import com.godspark.divine.ValidatedIntent;
 import com.godspark.divine.ValidationResult;
 import com.godspark.memory.ColonyMemory;
+import com.godspark.world.WorldEffectApplyResult;
+import com.godspark.GodsparkConfig;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.PacketDistributor;
 import com.godspark.memory.MemoryInfluence;
@@ -45,6 +47,8 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.fml.ModList;
 
 import java.util.List;
@@ -231,6 +235,7 @@ public final class GodsparkCommands {
         );
 
         root.then(Commands.literal("ui")
+            .requires(source -> source.hasPermission(2))
             .executes(ctx -> openUI(ctx.getSource()))
         );
 
@@ -562,6 +567,15 @@ public final class GodsparkCommands {
                         }
                     }
 
+                    if (validated.isEffectEligible()) {
+                        WorldEffectApplyResult worldResult = GodsparkMod.WORLD_EFFECT_ENGINE
+                            .tryApply(validated, source.getServer(), gameTick);
+                        if (worldResult.applied() && worldResult.affectedCount() > 0) {
+                            GodsparkMod.LOGGER.info("[Godspark WorldEffect] {} applied for colony #{}: {} targets affected",
+                                worldResult.effect().displayName(), colonyId, worldResult.affectedCount());
+                        }
+                    }
+
                     source.sendSuccess(() -> Component.literal(formatValidatedIntent(validated)), false);
                 });
             });
@@ -594,9 +608,9 @@ public final class GodsparkCommands {
         sb.append(String.format("  Domain: %s\n", intent.domainDisplayName()));
         sb.append(String.format("  Validation: %s\n", validated.result().getDisplayName()));
         if (validated.isEffectEligible()) {
-            sb.append("  Effect: Miracle eligible — pressure modifier will be applied\n");
+            sb.append("  Effect: Miracle eligible -- pressure modifier will be applied\n");
         } else if (validated.isDowngraded()) {
-            sb.append("  Effect: Downgraded to oracle only — no world effect\n");
+            sb.append("  Effect: Downgraded to oracle only -- no world effect\n");
         }
         sb.append(String.format("  Matched Public Prayer: %s\n",
             intent.matchedPublicPrayer() ? "yes" : "no"));
@@ -615,6 +629,17 @@ public final class GodsparkCommands {
         PressureModifierManager modManager = GodsparkMod.PRESSURE_MODIFIER_MANAGER;
         List<PressureModifier> allMods = modManager.getAllModifiers();
         long currentTick = source.getServer().getTickCount();
+
+        String whitelistLine = "Whitelisted miracle domains: " +
+            String.join(", ", PressureModifierManager.getWhitelistedDomains().stream()
+                .map(PressureType::getDisplayName).toList());
+
+        String worldEffectsLine;
+        if (GodsparkConfig.WORLD_EFFECTS_ENABLED.get()) {
+            worldEffectsLine = "World effects: ENABLED (cooldown: " + GodsparkConfig.WORLD_EFFECT_COOLDOWN_TICKS.get() + " ticks)";
+        } else {
+            worldEffectsLine = "World effects: DISABLED (config worldEffects.enabled=false)";
+        }
 
         if (colonyId > 0) {
             List<PressureModifier> colonyMods = modManager.getModifiersForColony(colonyId);
@@ -643,12 +668,27 @@ public final class GodsparkCommands {
                 }
             }
             sb.append(String.format("  Next miracle available in: %d ticks\n", cooldown));
+            sb.append("  ").append(whitelistLine).append('\n');
+            sb.append("  ").append(worldEffectsLine).append('\n');
+
+            var observed = GodsparkMod.COLONY_OBSERVER.getObservedColonies().get(colonyId);
+            ResourceKey<Level> dimKey = observed != null && observed.getLatest() != null
+                ? observed.getLatest().dimension() : null;
+            var weRecord = GodsparkMod.WORLD_EFFECT_ENGINE.getLastRecord(colonyId, dimKey);
+            if (weRecord != null) {
+                sb.append(String.format("  Last world effect: %s at tick %d, affected %d targets\n",
+                    weRecord.lastEffect(), weRecord.lastFireTick(), weRecord.lastAffectedCount()));
+            } else {
+                sb.append("  Last world effect: none\n");
+            }
+
             source.sendSuccess(() -> Component.literal(sb.toString()), false);
             return colonyMods.size();
         }
 
         if (allMods.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("No active miracle modifiers."), false);
+            source.sendSuccess(() -> Component.literal(
+                "No active miracle modifiers.\n" + whitelistLine + "\n" + worldEffectsLine), false);
             return 0;
         }
 
@@ -662,6 +702,8 @@ public final class GodsparkCommands {
                 mod.remainingTicks(currentTick),
                 mod.source()));
         }
+        sb.append(whitelistLine).append('\n');
+        sb.append(worldEffectsLine).append('\n');
         source.sendSuccess(() -> Component.literal(sb.toString()), false);
         return allMods.size();
     }

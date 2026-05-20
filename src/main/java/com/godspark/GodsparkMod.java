@@ -2,6 +2,10 @@ package com.godspark;
 
 import com.godspark.ai.AiReflectionService;
 import com.godspark.ai.AiConfig;
+import com.godspark.world.WorldEffectEngine;
+import com.godspark.world.ForgeWorldEffectApplier;
+import com.godspark.world.ForgeWorldEffectsSettings;
+import com.godspark.world.ReflectiveMineColoniesGuardResolver;
 import com.godspark.command.GodsparkCommands;
 import com.godspark.divine.DivineAnswerInterpreter;
 import com.godspark.event.GodsparkServerEvents;
@@ -49,6 +53,7 @@ public final class GodsparkMod {
     public static final PrayerSeedGenerator PRAYER_SEED_GENERATOR = new PrayerSeedGenerator();
     public static final PrayerSeedBank PRAYER_SEED_BANK = new PrayerSeedBank();
     public static final PersonalityInfluence PERSONALITY_INFLUENCE = new PersonalityInfluence();
+    public static final WorldEffectEngine WORLD_EFFECT_ENGINE;
 
     private static AiConfig aiConfig;
     public static final AiReflectionService AI_REFLECTION_SERVICE;
@@ -59,6 +64,9 @@ public final class GodsparkMod {
         aiConfig = buildAiConfig();
         AI_REFLECTION_SERVICE = new AiReflectionService(aiConfig);
         DIVINE_ANSWER_INTERPRETER = new DivineAnswerInterpreter(aiConfig);
+        WORLD_EFFECT_ENGINE = new WorldEffectEngine(
+            new ForgeWorldEffectApplier(new ReflectiveMineColoniesGuardResolver()),
+            ForgeWorldEffectsSettings.INSTANCE);
     }
 
     @SuppressWarnings("deprecation")

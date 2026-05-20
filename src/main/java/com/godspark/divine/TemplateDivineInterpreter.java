@@ -7,8 +7,11 @@ import com.godspark.prayer.PrayerSeed;
 import com.godspark.prayer.PrayerType;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 final class TemplateDivineInterpreter {
 
@@ -137,35 +140,143 @@ final class TemplateDivineInterpreter {
         return detectDomainFromPrayers(context);
     }
 
-    private static PressureType detectDomainFromKeywords(String text) {
-        String lower = text.toLowerCase(Locale.ROOT);
-        if (lower.contains("food") || lower.contains("hunger") || lower.contains("bread")
-            || lower.contains("crop") || lower.contains("field") || lower.contains("farm")
-            || lower.contains("eat") || lower.contains("starv") || lower.contains("granar")) {
-            return PressureType.FOOD;
+    private static final List<PressureType> FALLBACK_PRIORITY = List.of(
+        PressureType.SECURITY, PressureType.FOOD, PressureType.HOUSING,
+        PressureType.COMFORT, PressureType.INDUSTRY
+    );
+
+    private record DomainKeyword(PressureType domain, String keyword, int weight, boolean prefixAllowed) {}
+
+    private static DomainKeyword dk(PressureType domain, String keyword, int weight) {
+        return new DomainKeyword(domain, keyword, weight, keyword.length() >= 4);
+    }
+
+    private static final List<DomainKeyword> DOMAIN_KEYWORDS = List.of(
+        // SECURITY - action verbs (3)
+        dk(PressureType.SECURITY, "protect", 3),
+        dk(PressureType.SECURITY, "defend", 3),
+        dk(PressureType.SECURITY, "shield", 3),
+        // SECURITY - targets (2)
+        dk(PressureType.SECURITY, "guard", 2),
+        dk(PressureType.SECURITY, "raid", 2),
+        dk(PressureType.SECURITY, "enemy", 2),
+        dk(PressureType.SECURITY, "monster", 2),
+        dk(PressureType.SECURITY, "attack", 2),
+        dk(PressureType.SECURITY, "threat", 2),
+        dk(PressureType.SECURITY, "danger", 2),
+        dk(PressureType.SECURITY, "militia", 2),
+        dk(PressureType.SECURITY, "sword", 2),
+
+        // FOOD - action verbs (3)
+        dk(PressureType.FOOD, "feed", 3),
+        dk(PressureType.FOOD, "grow", 3),
+        dk(PressureType.FOOD, "harvest", 3),
+        dk(PressureType.FOOD, "nourish", 3),
+        // FOOD - targets (2)
+        dk(PressureType.FOOD, "food", 2),
+        dk(PressureType.FOOD, "hunger", 2),
+        dk(PressureType.FOOD, "famine", 2),
+        dk(PressureType.FOOD, "crop", 2),
+        dk(PressureType.FOOD, "wheat", 2),
+        dk(PressureType.FOOD, "farm", 2),
+        dk(PressureType.FOOD, "bread", 2),
+        dk(PressureType.FOOD, "granary", 2),
+        dk(PressureType.FOOD, "granar", 2),
+
+        // HOUSING - action verbs (3)
+        dk(PressureType.HOUSING, "shelter", 3),
+        dk(PressureType.HOUSING, "settle", 3),
+        // HOUSING - targets (2)
+        dk(PressureType.HOUSING, "home", 2),
+        dk(PressureType.HOUSING, "house", 2),
+        dk(PressureType.HOUSING, "roof", 2),
+        dk(PressureType.HOUSING, "dwelling", 2),
+        dk(PressureType.HOUSING, "hut", 2),
+        dk(PressureType.HOUSING, "cabin", 2),
+        dk(PressureType.HOUSING, "room", 2),
+        // HOUSING - short words (exact match only, len < 4)
+        new DomainKeyword(PressureType.HOUSING, "bed", 2, false),
+
+        // COMFORT - action verbs (3)
+        dk(PressureType.COMFORT, "comfort", 3),
+        dk(PressureType.COMFORT, "soothe", 3),
+        dk(PressureType.COMFORT, "calm", 3),
+        // COMFORT - nouns (2)
+        dk(PressureType.COMFORT, "hope", 2),
+        dk(PressureType.COMFORT, "joy", 2),
+        dk(PressureType.COMFORT, "peace", 2),
+        dk(PressureType.COMFORT, "morale", 2),
+        dk(PressureType.COMFORT, "happiness", 2),
+        dk(PressureType.COMFORT, "spirit", 2),
+        // COMFORT - generic (1)
+        dk(PressureType.COMFORT, "heal", 1),
+        new DomainKeyword(PressureType.COMFORT, "rest", 1, false),
+
+        // INDUSTRY - action verbs (3)
+        dk(PressureType.INDUSTRY, "craft", 3),
+        dk(PressureType.INDUSTRY, "forge", 3),
+        dk(PressureType.INDUSTRY, "smelt", 3),
+        // INDUSTRY - targets (2)
+        dk(PressureType.INDUSTRY, "tool", 2),
+        dk(PressureType.INDUSTRY, "furnace", 2),
+        dk(PressureType.INDUSTRY, "anvil", 2),
+        dk(PressureType.INDUSTRY, "workshop", 2),
+        dk(PressureType.INDUSTRY, "quarry", 2),
+        // INDUSTRY - generic (1)
+        dk(PressureType.INDUSTRY, "work", 1),
+        dk(PressureType.INDUSTRY, "build", 1)
+    );
+
+    static PressureType detectDomainFromKeywords(String text) {
+        if (text == null) return null;
+        Set<String> tokens = tokenize(text);
+
+        EnumMap<PressureType, Integer> scores = new EnumMap<>(PressureType.class);
+        for (DomainKeyword keyword : DOMAIN_KEYWORDS) {
+            if (matchesKeyword(tokens, keyword)) {
+                scores.merge(keyword.domain(), keyword.weight(), Integer::sum);
+            }
         }
-        if (lower.contains("guard") || lower.contains("raid") || lower.contains("protect")
-            || lower.contains("dark") || lower.contains("wall") || lower.contains("shield")
-            || lower.contains("watch") || lower.contains("defend") || lower.contains("sword")
-            || lower.contains("militia")) {
-            return PressureType.SECURITY;
+
+        if (scores.isEmpty()) return null;
+
+        int maxScore = -1;
+        for (int score : scores.values()) {
+            if (score > maxScore) maxScore = score;
         }
-        if (lower.contains("home") || lower.contains("roof") || lower.contains("bed")
-            || lower.contains("shelter") || lower.contains("house") || lower.contains("residence")
-            || lower.contains("dwell")) {
-            return PressureType.HOUSING;
+
+        List<PressureType> tied = new ArrayList<>();
+        for (var entry : scores.entrySet()) {
+            if (entry.getValue() == maxScore) {
+                tied.add(entry.getKey());
+            }
         }
-        if (lower.contains("sad") || lower.contains("peace") || lower.contains("joy")
-            || lower.contains("happy") || lower.contains("rest") || lower.contains("comfort")
-            || lower.contains("heal") || lower.contains("hope")) {
-            return PressureType.COMFORT;
+
+        if (tied.size() == 1) return tied.get(0);
+
+        for (PressureType fallback : FALLBACK_PRIORITY) {
+            if (tied.contains(fallback)) return fallback;
         }
-        if (lower.contains("tool") || lower.contains("work") || lower.contains("build")
-            || lower.contains("mine") || lower.contains("industry") || lower.contains("forge")
-            || lower.contains("craft") || lower.contains("prod")) {
-            return PressureType.INDUSTRY;
+
+        return tied.get(0);
+    }
+
+    private static Set<String> tokenize(String text) {
+        Set<String> tokens = new HashSet<>();
+        for (String token : text.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")) {
+            if (!token.isEmpty()) tokens.add(token);
         }
-        return null;
+        return tokens;
+    }
+
+    private static boolean matchesKeyword(Set<String> tokens, DomainKeyword keyword) {
+        String value = keyword.keyword();
+        if (tokens.contains(value)) return true;
+        if (!keyword.prefixAllowed()) return false;
+        for (String token : tokens) {
+            if (token.length() > value.length() && token.startsWith(value)) return true;
+        }
+        return false;
     }
 
     private static PressureType detectDomainFromPrayers(DivineAnswerContext context) {
