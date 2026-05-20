@@ -41,14 +41,21 @@
 | 5B | ✅ DONE | Divine Answer Interpreter — `/godspark answer` |
 | 5C | ✅ DONE | DivineIntent Validator — ORACLE_APPROVED / EFFECT_ELIGIBLE / REJECTED / DOWNGRADED |
 | 5D.1 | ✅ DONE | Pressure Modifier Miracles — Guardian's Vigil, Green Mercy |
+| 5D.2 | ✅ DONE | Light World Effects — Resistance I on guards, crop growth | `world/` package |
+| 6A | ✅ DONE | Colony Personality — deterministic traits from history | `personality/` package |
+| 6A.1 | ✅ DONE | PersonalityInfluence + PrayerTone | `PersonalityInfluence.java` |
+| 6A.2 | ✅ DONE | Sacred Access Score + COMMONS channel | `SacredSiteManager.java` |
+| 6A.2.1 | ✅ DONE | Sacred keyword compatibility patch | `BuildingClassifier.java` |
+| 6A.3 | ✅ DONE | Prayer Stone block + SacredSiteManager | `block/`, `sacred/` |
+| UI-A | ✅ DONE | Debug Dashboard (6-tab GUI) | `network/`, `client/` |
 
 ## Next Candidate Phases
 
 | Phase | Risk | Description |
 |---|---|---|
-| 5 Stabilization | Low | In-game smoke testing of 5B-5D.1 pipeline |
-| 6A | Low | Colony Personality — deterministic traits from history |
-| 5D.2 | Medium | Light World Effects — entity effects, crop growth |
+| 6B | Medium | Colony Intentions — not started |
+| 6C | High | Civilization Evolution — not started |
+| 5D.3 | Medium | Full domain coverage (COMFORT/HOUSING/INDUSTRY world effects) — deferred |
 
 ## Key Files (divine package)
 
@@ -92,4 +99,6 @@ C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create'a Colony
 - Memory decay not implemented (decayRate stored but unused)
 - CREATE_TRIAL is narrative-only — no world effect yet
 - No persistence for pressure modifiers (runtime only — cleared on restart)
-- Phase 5D.2 (light world effects) and Phase 6A (colony personality) not yet started
+- Phase 6B (Colony Intentions) not started
+- Phase 6C (Civilization Evolution) not started
+- Phase 5D.3 (COMFORT/HOUSING/INDUSTRY world effects) deferred until FOOD/SECURITY proven stable
