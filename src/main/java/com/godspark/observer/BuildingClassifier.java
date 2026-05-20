@@ -1,6 +1,7 @@
 package com.godspark.observer;
 
-import com.godspark.GodsparkMod;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.HashSet;
 import java.util.Locale;
@@ -9,10 +10,36 @@ import java.util.Set;
 
 public final class BuildingClassifier {
 
+    private static final Logger LOGGER = LogManager.getLogger("GodsparkBuilding");
     private static final Set<String> LOGGED_UNKNOWNS = new HashSet<>();
 
+    private static final String[] SACRED_TOKENS = {
+        "church", "chapel", "temple", "shrine", "monastery", "mystical",
+        "altar", "sanctuary", "oracle", "ritual", "rune", "totem",
+        "spirit", "divine", "sacred", "reliquary", "obelisk"
+    };
+    private static final String[] WAREHOUSE_TOKENS = {"warehouse"};
+    private static final String[] SECURITY_TOKENS = {
+        "guard", "barracks", "knight", "ranger", "combat", "archery"
+    };
+    private static final String[] FOOD_TOKENS = {
+        "restaurant", "farmer", "fisher", "bakery", "baker", "cook",
+        "kitchen", "herder", "cowboy", "shepherd", "swine", "rabbit", "beekeeper"
+    };
+    private static final String[] INDUSTRY_TOKENS = {
+        "builder", "miner", "lumber", "sawmill", "mason", "smelter",
+        "crusher", "sifter", "blacksmith", "mechanic", "composter",
+        "courier", "delivery", "concrete", "dyer", "fletcher"
+    };
+    private static final String[] HOUSING_TOKENS = {
+        "residence", "citizen", "hut", "tavern", "housing"
+    };
+    private static final String[] COMFORT_TOKENS = {
+        "hospital", "library", "university", "school", "enchant",
+        "alchemist", "glass", "postbox", "stash", "florist", "plantation"
+    };
+
     private static final Map<String, BuildingCategory> REGISTRY_MAP = Map.ofEntries(
-        // ── FOOD ──
         Map.entry("restaurant", BuildingCategory.FOOD),
         Map.entry("farmer", BuildingCategory.FOOD),
         Map.entry("fisherman", BuildingCategory.FOOD),
@@ -28,7 +55,6 @@ public final class BuildingClassifier {
         Map.entry("swineherder", BuildingCategory.FOOD),
         Map.entry("rabbithutch", BuildingCategory.FOOD),
         Map.entry("beekeeper", BuildingCategory.FOOD),
-        // ── SECURITY ──
         Map.entry("guardtower", BuildingCategory.SECURITY),
         Map.entry("guard_tower", BuildingCategory.SECURITY),
         Map.entry("barracks", BuildingCategory.SECURITY),
@@ -38,12 +64,10 @@ public final class BuildingClassifier {
         Map.entry("combatacademy", BuildingCategory.SECURITY),
         Map.entry("knight", BuildingCategory.SECURITY),
         Map.entry("ranger", BuildingCategory.SECURITY),
-        // ── HOUSING ──
         Map.entry("residence", BuildingCategory.HOUSING),
         Map.entry("citizenhut", BuildingCategory.HOUSING),
         Map.entry("citizen_hut", BuildingCategory.HOUSING),
         Map.entry("tavern", BuildingCategory.HOUSING),
-        // ── COMFORT ──
         Map.entry("hospital", BuildingCategory.COMFORT),
         Map.entry("library", BuildingCategory.COMFORT),
         Map.entry("university", BuildingCategory.COMFORT),
@@ -56,7 +80,6 @@ public final class BuildingClassifier {
         Map.entry("stash", BuildingCategory.COMFORT),
         Map.entry("florist", BuildingCategory.COMFORT),
         Map.entry("plantation", BuildingCategory.COMFORT),
-        // ── INDUSTRY ──
         Map.entry("builder", BuildingCategory.INDUSTRY),
         Map.entry("miner", BuildingCategory.INDUSTRY),
         Map.entry("lumberjack", BuildingCategory.INDUSTRY),
@@ -75,9 +98,7 @@ public final class BuildingClassifier {
         Map.entry("courier", BuildingCategory.INDUSTRY),
         Map.entry("deliveryman", BuildingCategory.INDUSTRY),
         Map.entry("deliverymen", BuildingCategory.INDUSTRY),
-        // ── WAREHOUSE ──
         Map.entry("warehouse", BuildingCategory.WAREHOUSE),
-        // ── SACRED ──
         Map.entry("mysticalsite", BuildingCategory.SACRED),
         Map.entry("mystical_site", BuildingCategory.SACRED),
         Map.entry("church", BuildingCategory.SACRED),
@@ -96,7 +117,6 @@ public final class BuildingClassifier {
         Map.entry("sacred", BuildingCategory.SACRED),
         Map.entry("reliquary", BuildingCategory.SACRED),
         Map.entry("obelisk", BuildingCategory.SACRED),
-        // ── OTHER ──
         Map.entry("townhall", BuildingCategory.OTHER)
     );
 
@@ -163,62 +183,27 @@ public final class BuildingClassifier {
     private static BuildingCategory classifyByKeyword(String key) {
         String lower = key.toLowerCase(Locale.ROOT);
 
-        if (lower.contains("church") || lower.contains("chapel")
-            || lower.contains("temple") || lower.contains("shrine")
-            || lower.contains("monastery") || lower.contains("mystical")
-            || lower.contains("altar") || lower.contains("sanctuary")
-            || lower.contains("oracle") || lower.contains("ritual")
-            || lower.contains("rune") || lower.contains("totem")
-            || lower.contains("spirit") || lower.contains("divine")
-            || lower.contains("sacred") || lower.contains("reliquary")
-            || lower.contains("obelisk")) {
-            return BuildingCategory.SACRED;
-        }
-        if (lower.contains("warehouse")) return BuildingCategory.WAREHOUSE;
-        if (lower.contains("guard") || lower.contains("barracks")
-            || lower.contains("knight") || lower.contains("ranger")
-            || lower.contains("combat") || lower.contains("archery")) {
-            return BuildingCategory.SECURITY;
-        }
-        if (lower.contains("restaurant") || lower.contains("farmer")
-            || lower.contains("fisher") || lower.contains("bakery")
-            || lower.contains("baker") || lower.contains("cook")
-            || lower.contains("kitchen") || lower.contains("herder")
-            || lower.contains("cowboy") || lower.contains("shepherd")
-            || lower.contains("swine") || lower.contains("rabbit")
-            || lower.contains("beekeeper")) {
-            return BuildingCategory.FOOD;
-        }
-        if (lower.contains("builder") || lower.contains("miner")
-            || lower.contains("lumber") || lower.contains("sawmill")
-            || lower.contains("mason") || lower.contains("smelter")
-            || lower.contains("crusher") || lower.contains("sifter")
-            || lower.contains("blacksmith") || lower.contains("mechanic")
-            || lower.contains("composter") || lower.contains("courier")
-            || lower.contains("delivery") || lower.contains("concrete")
-            || lower.contains("dyer") || lower.contains("fletcher")) {
-            return BuildingCategory.INDUSTRY;
-        }
-        if (lower.contains("residence") || lower.contains("citizen")
-            || lower.contains("hut") || lower.contains("tavern")
-            || lower.contains("housing")) {
-            return BuildingCategory.HOUSING;
-        }
-        if (lower.contains("hospital") || lower.contains("library")
-            || lower.contains("university") || lower.contains("school")
-            || lower.contains("enchant") || lower.contains("alchemist")
-            || lower.contains("glass") || lower.contains("postbox")
-            || lower.contains("stash") || lower.contains("florist")
-            || lower.contains("plantation")) {
-            return BuildingCategory.COMFORT;
-        }
+        if (matchesAny(lower, SACRED_TOKENS)) return BuildingCategory.SACRED;
+        if (matchesAny(lower, WAREHOUSE_TOKENS)) return BuildingCategory.WAREHOUSE;
+        if (matchesAny(lower, SECURITY_TOKENS)) return BuildingCategory.SECURITY;
+        if (matchesAny(lower, FOOD_TOKENS)) return BuildingCategory.FOOD;
+        if (matchesAny(lower, INDUSTRY_TOKENS)) return BuildingCategory.INDUSTRY;
+        if (matchesAny(lower, HOUSING_TOKENS)) return BuildingCategory.HOUSING;
+        if (matchesAny(lower, COMFORT_TOKENS)) return BuildingCategory.COMFORT;
 
         return BuildingCategory.OTHER;
     }
 
+    private static boolean matchesAny(String text, String[] tokens) {
+        for (String token : tokens) {
+            if (text.contains(token)) return true;
+        }
+        return false;
+    }
+
     private static void logUnknown(String key) {
         if (LOGGED_UNKNOWNS.add(key)) {
-            GodsparkMod.LOGGER.warn("[Godspark Observer] Unknown MineColonies building type: {}", key);
+            LOGGER.warn("[Godspark Observer] Unknown MineColonies building type: {}", key);
         }
     }
 }

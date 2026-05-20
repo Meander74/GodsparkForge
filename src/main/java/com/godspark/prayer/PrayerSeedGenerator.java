@@ -510,7 +510,7 @@ public final class PrayerSeedGenerator {
         if (channel == PrayerChannel.PRIVATE) {
             return switch (pressureType) {
                 case FOOD -> "Some families in " + colonyName + " whisper, " + phrase + ", of empty bowls and old hunger.";
-                case SECURITY -> phrase + ", fears move through " + colonyName + " — old wounds remembered in silence.";
+                case SECURITY -> phrase + ", fears move through " + colonyName + " - old wounds remembered in silence.";
                 case HOUSING -> "Those without shelter in " + colonyName + " murmur, " + phrase + ", of roofs still owed.";
                 case COMFORT -> "In " + colonyName + ", discontent is spoken of " + phrase + " at the door.";
                 case INDUSTRY -> "Workers in " + colonyName + " " + phrase + " remember when the forge stood cold.";

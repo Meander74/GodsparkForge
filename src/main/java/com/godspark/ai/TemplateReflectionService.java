@@ -218,7 +218,7 @@ public final class TemplateReflectionService {
             m.pressureType() == dominant && m.memoryType() == MemoryType.TRIUMPH);
 
         if (hasTrauma && hasPattern) {
-            sb.append(" The colony remembers this pain well — it has become a scarred pattern.");
+            sb.append(" The colony remembers this pain well - it has become a scarred pattern.");
         } else if (hasTrauma) {
             sb.append(" The memory of past " + domLabel + " hardship still haunts them.");
         } else if (hasPattern) {

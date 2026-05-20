@@ -1,8 +1,57 @@
 {
-  "loader": "forge:obj",
-  "flip_v": true,
-  "model": "godspark:models/block/prayer_stone.obj",
+  "parent": "block/block",
   "textures": {
+    "stone": "godspark:block/prayer_stone",
     "particle": "godspark:block/prayer_stone"
+  },
+  "elements": [
+    {
+      "name": "base",
+      "from": [2, 0, 2],
+      "to": [14, 16, 14],
+      "faces": {
+        "north": {"uv": [0, 0, 12, 16], "texture": "#stone"},
+        "east":  {"uv": [0, 0, 12, 16], "texture": "#stone"},
+        "south": {"uv": [0, 0, 12, 16], "texture": "#stone"},
+        "west":  {"uv": [0, 0, 12, 16], "texture": "#stone"},
+        "up":    {"uv": [2, 2, 14, 14], "texture": "#stone"},
+        "down":  {"uv": [2, 2, 14, 14], "texture": "#stone"}
+      }
+    },
+    {
+      "name": "top",
+      "from": [4, 16, 4],
+      "to": [12, 24, 12],
+      "faces": {
+        "north": {"uv": [0, 0, 8, 8], "texture": "#stone"},
+        "east":  {"uv": [0, 0, 8, 8], "texture": "#stone"},
+        "south": {"uv": [0, 0, 8, 8], "texture": "#stone"},
+        "west":  {"uv": [0, 0, 8, 8], "texture": "#stone"},
+        "up":    {"uv": [4, 4, 12, 12], "texture": "#stone"},
+        "down":  {"uv": [4, 4, 12, 12], "texture": "#stone"}
+      }
+    }
+  ],
+  "display": {
+    "thirdperson_righthand": {
+      "rotation": [75, 45, 0],
+      "translation": [0, 2.5, 0],
+      "scale": [0.375, 0.375, 0.375]
+    },
+    "firstperson_righthand": {
+      "rotation": [0, 45, 0],
+      "translation": [0, 0, 0],
+      "scale": [0.4, 0.4, 0.4]
+    },
+    "gui": {
+      "rotation": [30, 45, 0],
+      "translation": [0, 0, 0],
+      "scale": [0.625, 0.625, 0.625]
+    },
+    "fixed": {
+      "rotation": [0, 180, 0],
+      "translation": [0, 0, 0],
+      "scale": [0.5, 0.5, 0.5]
+    }
   }
 }

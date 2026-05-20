@@ -36,7 +36,7 @@ public record ValidatedIntent(
     }
 
     public String validationSummary() {
-        return String.format("[%s] %s → %s (%s)",
+        return String.format("[%s] %s -> %s (%s)",
             result.getDisplayName(),
             intent != null ? intent.intentType().getDisplayName() : "NULL",
             intent != null ? intent.domainDisplayName() : "N/A",

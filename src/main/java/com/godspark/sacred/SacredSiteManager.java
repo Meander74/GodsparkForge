@@ -1,19 +1,23 @@
 package com.godspark.sacred;
 
 import com.godspark.GodsparkConfig;
+import com.godspark.observer.ColonyObserver;
 import com.godspark.observer.ColonySnapshot;
 import com.godspark.observer.ObservedColony;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,6 +34,7 @@ public final class SacredSiteManager {
     private final Map<SacredSiteKey, SacredSiteRecord> sitesByPos = new ConcurrentHashMap<>();
     private final Map<Integer, Set<SacredSiteKey>> sitesByColony = new ConcurrentHashMap<>();
     private volatile Runnable dirtyListener = () -> {};
+    private boolean restoring;
 
     private SacredSiteManager() {}
 
@@ -71,6 +76,7 @@ public final class SacredSiteManager {
             pos.immutable(),
             dimension,
             colonyId,
+            gameTick,
             gameTick
         );
         register(record);
@@ -87,7 +93,7 @@ public final class SacredSiteManager {
         if (record.colonyId() >= 0) {
             sitesByColony.computeIfAbsent(record.colonyId(), id -> ConcurrentHashMap.newKeySet()).add(key);
         }
-        markDirty();
+        if (!restoring) markDirty();
         LOGGER.info("[GS/Sacred] Registered {} for colony #{} at {} in {}",
             record.type().getKey(), record.colonyId(), record.pos().toShortString(), record.dimension());
     }
@@ -109,7 +115,7 @@ public final class SacredSiteManager {
         if (removed == null) return;
 
         removeFromColonyIndex(key, removed.colonyId());
-        markDirty();
+        if (!restoring) markDirty();
         LOGGER.info("[GS/Sacred] Unregistered {} for colony #{} at {} in {}",
             removed.type().getKey(), removed.colonyId(), pos.toShortString(), dimension);
     }
@@ -140,10 +146,18 @@ public final class SacredSiteManager {
         return Collections.unmodifiableMap(new HashMap<>(sitesByPos));
     }
 
+    public List<SacredSiteRecord> snapshotSites() {
+        return List.copyOf(new ArrayList<>(sitesByPos.values()));
+    }
+
+    public int siteCount() {
+        return sitesByPos.size();
+    }
+
     public Map<SacredSiteKey, SacredSiteRecord> getSitesInDimension(ResourceKey<Level> dimension) {
         if (dimension == null) return Collections.emptyMap();
-        Map<SacredSiteKey, SacredSiteRecord> result = new HashMap<>();
         ResourceLocation dim = dimension.location();
+        Map<SacredSiteKey, SacredSiteRecord> result = new HashMap<>();
         for (Map.Entry<SacredSiteKey, SacredSiteRecord> entry : sitesByPos.entrySet()) {
             if (entry.getKey().dimension().equals(dim)) {
                 result.put(entry.getKey(), entry.getValue());
@@ -152,15 +166,97 @@ public final class SacredSiteManager {
         return Collections.unmodifiableMap(result);
     }
 
+    public void restoreFrom(Collection<SacredSiteRecord> records) {
+        restoring = true;
+        try {
+            Map<SacredSiteKey, SacredSiteRecord> replacement = new HashMap<>();
+            Map<Integer, Set<SacredSiteKey>> colonyIndex = new HashMap<>();
+            int dropped = 0;
+
+            for (SacredSiteRecord record : records) {
+                if (record == null) { dropped++; continue; }
+                SacredSiteKey key = new SacredSiteKey(record.dimension(), record.pos());
+                SacredSiteRecord existing = replacement.put(key, record);
+                if (existing != null) {
+                    LOGGER.debug("[GS/Sacred] Duplicate site at {} in {} - keeping last record",
+                        record.pos().toShortString(), record.dimension());
+                }
+                if (record.colonyId() >= 0) {
+                    colonyIndex.computeIfAbsent(record.colonyId(), k -> ConcurrentHashMap.newKeySet()).add(key);
+                }
+            }
+
+            sitesByPos.clear();
+            sitesByColony.clear();
+            sitesByPos.putAll(replacement);
+            for (Map.Entry<Integer, Set<SacredSiteKey>> entry : colonyIndex.entrySet()) {
+                Set<SacredSiteKey> keySet = ConcurrentHashMap.newKeySet();
+                keySet.addAll(entry.getValue());
+                sitesByColony.put(entry.getKey(), keySet);
+            }
+
+            LOGGER.info("[GS/Sacred] Restored {} sacred sites ({} dropped)", replacement.size(), dropped);
+        } finally {
+            restoring = false;
+        }
+    }
+
+    public int revalidateBindings(ServerLevel level, ColonyObserver observer) {
+        if (level == null) return 0;
+        long gameTick = level.getGameTime();
+        int changed = 0;
+
+        List<SacredSiteRecord> current = snapshotSites();
+        for (SacredSiteRecord site : current) {
+            if (site == null) continue;
+            if (site.type() != SacredSiteType.PRAYER_STONE) continue;
+
+            ResourceLocation dim = site.dimension();
+            if (!dim.equals(level.dimension().location())) continue;
+
+            ObservedColony observed = observer.getColony(site.colonyId());
+            boolean valid = false;
+
+            if (observed != null) {
+                ColonySnapshot snapshot = observed.getLatest();
+                if (snapshot != null && snapshot.dimension().location().equals(dim)) {
+                    double distSqr = snapshot.center().distSqr(site.pos());
+                    if (distSqr <= (double) getPrayerStoneBindRadius() * getPrayerStoneBindRadius()) {
+                        valid = true;
+                        SacredSiteRecord updated = new SacredSiteRecord(
+                            site.type(), site.pos(), site.dimension(),
+                            site.colonyId(), site.registeredAtTick(), gameTick
+                        );
+                        sitesByPos.put(new SacredSiteKey(site.dimension(), site.pos()), updated);
+                    }
+                }
+            }
+
+            if (!valid) {
+                SacredSiteKey key = new SacredSiteKey(site.dimension(), site.pos());
+                sitesByPos.remove(key);
+                removeFromColonyIndex(key, site.colonyId());
+                changed++;
+                LOGGER.info("[GS/Sacred] Revalidation: removed {} at {} in {} (colony #{} invalid)",
+                    site.type().getKey(), site.pos().toShortString(), site.dimension(), site.colonyId());
+            }
+        }
+
+        if (changed > 0 && !restoring) markDirty();
+        LOGGER.info("[GS/Sacred] Revalidation complete: {} sites removed", changed);
+        return changed;
+    }
+
     public void clear() {
         sitesByPos.clear();
         sitesByColony.clear();
+        if (!restoring) markDirty();
         LOGGER.info("[GS/Sacred] All sacred sites cleared");
     }
 
     @Nullable
     private static PrayerStoneCandidate findNearestValidColony(ResourceLocation dimension, BlockPos pos,
-                                                              Iterable<PrayerStoneCandidate> colonies) {
+                                                               Iterable<PrayerStoneCandidate> colonies) {
         if (colonies == null) return null;
 
         double maxDistanceSqr = (double) getPrayerStoneBindRadius() * getPrayerStoneBindRadius();
@@ -186,7 +282,7 @@ public final class SacredSiteManager {
 
     private static Iterable<PrayerStoneCandidate> toCandidates(Map<Integer, ObservedColony> colonies) {
         if (colonies == null || colonies.isEmpty()) return Collections.emptyList();
-        java.util.List<PrayerStoneCandidate> candidates = new java.util.ArrayList<>();
+        List<PrayerStoneCandidate> candidates = new ArrayList<>();
         for (ObservedColony observed : colonies.values()) {
             if (observed == null || observed.getLatest() == null) continue;
             ColonySnapshot snapshot = observed.getLatest();

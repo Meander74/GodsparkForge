@@ -20,9 +20,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
@@ -46,11 +44,7 @@ public class PrayerStoneBlock extends BaseEntityBlock {
         return 7;
     }
 
-    private static final VoxelShape SHAPE = Shapes.join(
-        box(2.0, 0.0, 2.0, 14.0, 15.0, 14.0),
-        box(4.0, 12.0, 3.0, 12.0, 15.0, 13.0),
-        BooleanOp.OR
-    );
+    private static final VoxelShape SHAPE = box(2.0, 0.0, 2.0, 14.0, 16.0, 14.0);
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {

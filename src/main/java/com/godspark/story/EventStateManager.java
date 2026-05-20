@@ -17,6 +17,21 @@ public final class EventStateManager {
 
     private final Map<EventKey, EventRecord> activeEvents = new HashMap<>();
     private final Deque<EventRecord> resolvedEvents = new ArrayDeque<>();
+    private boolean dirty = false;
+
+    private void markDirty() {
+        dirty = true;
+    }
+
+    public boolean hasDirty() {
+        return dirty;
+    }
+
+    public boolean consumeDirty() {
+        boolean wasDirty = dirty;
+        dirty = false;
+        return wasDirty;
+    }
 
     public List<EventRecord> processEvents(List<StoryEvent> currentEvents, long gameTick) {
         List<EventRecord> transitions = new ArrayList<>();
@@ -43,6 +58,7 @@ public final class EventStateManager {
                     -1
                 );
                 activeEvents.put(key, newRecord);
+                markDirty();
                 transitions.add(newRecord);
             } else {
                 int newPersistence = existing.persistenceCount() + 1;
@@ -60,6 +76,7 @@ public final class EventStateManager {
                     -1
                 );
                 activeEvents.put(key, updated);
+                markDirty();
 
                 if (newState != existing.state()) {
                     transitions.add(updated);
@@ -86,8 +103,10 @@ public final class EventStateManager {
                     );
                     toRemove.add(key);
                     resolvedEvents.addLast(resolved);
+                    markDirty();
                     while (resolvedEvents.size() > MAX_RESOLVED_RECORDS) {
                         resolvedEvents.removeFirst();
+                        markDirty();
                     }
                     transitions.add(resolved);
                 } else {
@@ -101,6 +120,7 @@ public final class EventStateManager {
                         existing.resolvedTick()
                     );
                     activeEvents.put(key, updated);
+                    markDirty();
                 }
             }
         }
@@ -154,6 +174,7 @@ public final class EventStateManager {
     public void clear() {
         activeEvents.clear();
         resolvedEvents.clear();
+        dirty = false;
     }
 
     public void restoreActive(EventRecord record) {

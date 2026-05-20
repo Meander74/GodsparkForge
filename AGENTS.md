@@ -143,10 +143,18 @@ Test instance: `C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create
 
 ## Available Tools
 - **graphify → context-mode bridge** — Codebase knowledge graph indexed into FTS5:
-  - `ctx_search(queries: ["..."], source: "graphify-graph")` — architecture relationships
-  - `ctx_search(queries: ["..."], source: "graphify-ast")` — code-level dependencies
-  - `ctx_search(queries: ["..."], source: "graphify-report")` — community summaries
+  - `ctx_search(queries: ["..."], source: "graphify-graph")` — GodsparkForge architecture relationships
+  - `ctx_search(queries: ["..."], source: "graphify-ast")` — GodsparkForge code-level dependencies
+  - `ctx_search(queries: ["..."], source: "graphify-report")` — GodsparkForge community summaries
   - Rebuild: `graphify update "C:\Users\Suttawat\GodsparkForge"` then re-index after code changes
+- **MineColonies reference** — Indexed API graph from `C:\Users\Suttawat\minecolonies-ref`:
+  - `ctx_search(queries: ["..."], source: "minecolonies-report")` — Graph report, god nodes, communities
+  - `ctx_search(queries: ["..."], source: "minecolonies-relationships")` — API relationships (IColony, IBuilding, ICitizen, events, requests)
+  - `ctx_search(queries: ["..."], source: "minecolonies-api")` — 878 interfaces + 3286 key classes
+  - When code needs to interact with MineColonies, search these FIRST before reading source files
+  - Key API entry points: `IMinecoloniesAPI` → `IColonyManager` → `IColony` → `IBuilding`/`ICitizenData`/`IRequestManager`
+  - Source on disk: `C:\Users\Suttawat\minecolonies-ref\src\main\java\com\minecolonies\` (shallow clone, read-only)
+  - Update: `git -C "C:\Users\Suttawat\minecolonies-ref" pull` then re-run graphify
 - **context-mode** — Context window optimizer MCP server:
   - `ctx stats` — Show context savings
   - `ctx doctor` — Run diagnostics
@@ -164,4 +172,7 @@ Test instance: `C:\Users\Suttawat\AppData\Roaming\PrismLauncher\instances\Create
 - Phase 6C: Civilization Evolution not started
 
 ## Reference
-Detailed architecture, pressure formulas, package structure, design decisions: `docs/godspark-reference.md` (indexed via context-mode — search with `context-mode_ctx_search` before reading)
+- Detailed architecture, pressure formulas, package structure, design decisions: `docs/godspark-reference.md` (indexed via context-mode — search with `context-mode_ctx_search` before reading)
+- MineColonies API quick reference: `docs/minecolonies-api-quickref.md` (indexed as `minecolonies-quickref`)
+- MineColonies source on disk (read-only): `C:\Users\Suttawat\minecolonies-ref\src\main\java\com\minecolonies\`
+- MineColonies graph visualization: `C:\Users\Suttawat\minecolonies-ref\graphify-out\graph.html` (open in browser)

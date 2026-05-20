@@ -1,6 +1,5 @@
 package com.godspark.pressure;
 
-import com.godspark.GodsparkMod;
 import com.godspark.divine.DivineAnswerContext;
 import com.godspark.divine.DivineIntent;
 import com.godspark.divine.IntentType;
@@ -8,12 +7,16 @@ import com.godspark.divine.ValidatedIntent;
 import com.godspark.prayer.PrayerSeed;
 import com.godspark.story.EventRecord;
 import com.godspark.story.EventSeverity;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Server-thread-only manager for temporary pressure modifiers.
@@ -22,15 +25,37 @@ import java.util.Map;
  */
 public final class PressureModifierManager {
 
-    private static final int MIRACLE_COOLDOWN_TICKS = 24000;
+    public static final int MIRACLE_COOLDOWN_TICKS = 24000;
     private static final int MIRACLE_DURATION_TICKS = 6000;
     private static final int MIRACLE_AMOUNT = 20;
     private static final int MIRACLE_PRESSURE_FLOOR = 20;
+
+    private static final Set<PressureType> WHITELISTED_DOMAINS = EnumSet.of(
+        PressureType.SECURITY,
+        PressureType.FOOD
+    );
+
+    private static final Logger LOGGER = LogManager.getLogger("GodsparkMiracle");
 
     // Server-thread-only.
     private final List<PressureModifier> modifiers = new ArrayList<>();
     // Server-thread-only. Shared per-colony miracle cooldown.
     private final Map<Integer, Long> cooldowns = new HashMap<>();
+    private boolean dirty = false;
+
+    private void markDirty() {
+        dirty = true;
+    }
+
+    public boolean hasDirty() {
+        return dirty;
+    }
+
+    public boolean consumeDirty() {
+        boolean wasDirty = dirty;
+        dirty = false;
+        return wasDirty;
+    }
 
     public int getModifiedPressure(int colonyId, PressureType pressureType, int baseValue) {
         int totalDelta = 0;
@@ -61,9 +86,10 @@ public final class PressureModifierManager {
         while (it.hasNext()) {
             PressureModifier mod = it.next();
             if (mod.isExpired(currentTick)) {
-                GodsparkMod.LOGGER.info("[Godspark Miracle] Modifier expired: colony #{}, {} {}",
+                LOGGER.info("[Godspark Miracle] Modifier expired: colony #{}, {} {}",
                     mod.colonyId(), mod.pressureType().getDisplayName(), mod.amount());
                 it.remove();
+                markDirty();
             }
         }
     }
@@ -81,7 +107,7 @@ public final class PressureModifierManager {
         int colonyId = intent.colonyId();
 
         if (isOnCooldown(colonyId, currentTick)) {
-            GodsparkMod.LOGGER.info("[Godspark Miracle] Colony #{} on miracle cooldown ({} ticks remaining)",
+            LOGGER.info("[Godspark Miracle] Colony #{} on miracle cooldown ({} ticks remaining)",
                 colonyId, getCooldownRemaining(colonyId, currentTick));
             return false;
         }
@@ -110,12 +136,13 @@ public final class PressureModifierManager {
             canApply = canApplyGreenMercy(colonyId, context);
             miracleName = "GREEN_MERCY";
         } else {
-            miracleName = domain.name() + "_BLESSING";
-            canApply = true;
+            LOGGER.info("[Godspark Miracle] DOMAIN_NOT_WHITELISTED for colony #{}: {}",
+                colonyId, domain);
+            return false;
         }
 
         if (!canApply) {
-            GodsparkMod.LOGGER.info("[Godspark Miracle] {} preconditions not met for colony #{}",
+            LOGGER.info("[Godspark Miracle] {} preconditions not met for colony #{}",
                 miracleName, colonyId);
             return false;
         }
@@ -127,8 +154,9 @@ public final class PressureModifierManager {
         );
         modifiers.add(modifier);
         cooldowns.put(colonyId, currentTick);
+        markDirty();
 
-        GodsparkMod.LOGGER.info("[Godspark Miracle] {} activated for colony #{}: {} -{} for {} ticks",
+        LOGGER.info("[Godspark Miracle] {} activated for colony #{}: {} -{} for {} ticks",
             miracleName, colonyId, domain.getDisplayName(), MIRACLE_AMOUNT, MIRACLE_DURATION_TICKS);
 
         return true;
@@ -178,9 +206,50 @@ public final class PressureModifierManager {
     public void clear() {
         modifiers.clear();
         cooldowns.clear();
+        dirty = false;
+    }
+
+    public Map<Integer, Long> getCooldownEntries() {
+        return Map.copyOf(cooldowns);
+    }
+
+    public void restoreCooldownRemaining(Map<Integer, Long> remainingMap, long currentTick) {
+        cooldowns.clear();
+        for (Map.Entry<Integer, Long> entry : remainingMap.entrySet()) {
+            long remaining = entry.getValue();
+            if (remaining <= 0) continue;
+            long lastTick = currentTick - (MIRACLE_COOLDOWN_TICKS - remaining);
+            cooldowns.put(entry.getKey(), lastTick);
+        }
+        LOGGER.info("[Godspark Miracle] Restored {} cooldowns", cooldowns.size());
+    }
+
+    public void restoreModifiers(List<PressureModifier> savedModifiers, long currentTick) {
+        int restored = 0;
+        for (PressureModifier mod : savedModifiers) {
+            if (mod.expiresAtTick() - currentTick <= 0 || !isMiracleWhitelisted(mod.pressureType()))
+                continue;
+            long remaining = mod.expiresAtTick() - currentTick;
+            if (remaining <= 0) continue;
+            PressureModifier restoredMod = new PressureModifier(
+                mod.colonyId(), mod.pressureType(), mod.amount(),
+                mod.createdAtTick(), currentTick + remaining, mod.source()
+            );
+            modifiers.add(restoredMod);
+            restored++;
+        }
+        LOGGER.info("[Godspark Miracle] Restored {} active modifiers", restored);
     }
 
     public void clearCooldowns() {
         cooldowns.clear();
+    }
+
+    public static boolean isMiracleWhitelisted(PressureType domain) {
+        return domain != null && WHITELISTED_DOMAINS.contains(domain);
+    }
+
+    public static Set<PressureType> getWhitelistedDomains() {
+        return EnumSet.copyOf(WHITELISTED_DOMAINS);
     }
 }
