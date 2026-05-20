@@ -17,6 +17,7 @@ import com.godspark.story.EventRecord;
 import com.godspark.story.StoryEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.LevelResource;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
@@ -24,19 +25,27 @@ import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class GodsparkServerEvents {
     private static long tickCounter = 0;
     private static final boolean SUMMARY_LOGGING = true;
     @Nullable
     private static GodsparkSavedData savedData = null;
+    private static final AtomicBoolean pendingSacredRevalidation = new AtomicBoolean(false);
 
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
         MinecraftServer server = event.getServer();
+
+        backupGodsparkSavedData(server);
+
         savedData = server.overworld().getDataStorage().computeIfAbsent(
             GodsparkSavedData::load,
             GodsparkSavedData::createDefault,
@@ -44,7 +53,13 @@ public final class GodsparkServerEvents {
         );
         savedData.restoreTo(GodsparkMod.EVENT_STATE_MANAGER);
         savedData.restoreMemoriesTo(GodsparkMod.MEMORY_BANK);
+        savedData.restoreSacredSitesTo(SacredSiteManager.getInstance());
         SacredSiteManager.getInstance().setDirtyListener(savedData::setDirty);
+        savedData.restoreModifiersTo(GodsparkMod.PRESSURE_MODIFIER_MANAGER, server.getTickCount());
+        savedData.restoreWorldEffectCooldownsTo(GodsparkMod.WORLD_EFFECT_ENGINE);
+        GodsparkMod.WORLD_EFFECT_ENGINE.setDirtyListener(savedData::setDirty);
+
+        pendingSacredRevalidation.set(true);
 
         GodsparkMod.reloadAiConfig();
     }
@@ -54,7 +69,10 @@ public final class GodsparkServerEvents {
         if (savedData != null) {
             savedData.captureFrom(GodsparkMod.EVENT_STATE_MANAGER);
             savedData.captureMemoriesFrom(GodsparkMod.MEMORY_BANK);
-            GodsparkMod.LOGGER.info("[Godspark SavedData] Captured final event state and memories");
+            savedData.captureSacredSites(SacredSiteManager.getInstance());
+            savedData.captureModifiersFrom(GodsparkMod.PRESSURE_MODIFIER_MANAGER, tickCounter);
+            savedData.captureWorldEffectCooldownsFrom(GodsparkMod.WORLD_EFFECT_ENGINE);
+            GodsparkMod.LOGGER.info("[Godspark SavedData] Captured final event, memory, sacred, miracle, and world effect state");
         }
     }
 
@@ -69,10 +87,12 @@ public final class GodsparkServerEvents {
         GodsparkMod.AI_REFLECTION_SERVICE.clearCooldowns();
         GodsparkMod.PERSONALITY_ENGINE.clearCache();
         GodsparkMod.PRESSURE_MODIFIER_MANAGER.clear();
+        GodsparkMod.WORLD_EFFECT_ENGINE.clear();
         SacredSiteManager.getInstance().clear();
         SacredSiteManager.getInstance().setDirtyListener(null);
         tickCounter = 0;
         savedData = null;
+        pendingSacredRevalidation.set(false);
         GodsparkMod.LOGGER.info("[Godspark] Static services cleared");
     }
 
@@ -93,6 +113,22 @@ public final class GodsparkServerEvents {
 
         if (tickCounter % GodsparkConstants.OBSERVER_INTERVAL_TICKS == 0) {
             GodsparkMod.COLONY_OBSERVER.scan(server);
+        }
+
+        if (pendingSacredRevalidation.get()) {
+            Map<Integer, ObservedColony> colonies = GodsparkMod.COLONY_OBSERVER.getObservedColonies();
+            boolean allBoundColoniesSeen = SacredSiteManager.getInstance().snapshotSites().stream()
+                .filter(site -> site.colonyId() >= 0)
+                .allMatch(site -> colonies.containsKey(site.colonyId()));
+            if (allBoundColoniesSeen) {
+                pendingSacredRevalidation.set(false);
+                int changed = SacredSiteManager.getInstance().revalidateBindings(
+                    server.overworld(), GodsparkMod.COLONY_OBSERVER);
+                if (changed > 0 && savedData != null) {
+                    savedData.captureSacredSites(SacredSiteManager.getInstance());
+                    savedData.setDirty();
+                }
+            }
         }
 
         if (tickCounter % GodsparkConstants.PRESSURE_INTERVAL_TICKS == 0) {
@@ -137,14 +173,32 @@ public final class GodsparkServerEvents {
                 );
             }
 
-            if (!transitions.isEmpty() && savedData != null) {
-                savedData.captureFrom(GodsparkMod.EVENT_STATE_MANAGER);
-                savedData.captureMemoriesFrom(GodsparkMod.MEMORY_BANK);
+            boolean eventStateDirty = GodsparkMod.EVENT_STATE_MANAGER.hasDirty();
+            boolean memoriesDirty = !newMemories.isEmpty();
+            boolean modifierDirty = GodsparkMod.PRESSURE_MODIFIER_MANAGER.hasDirty();
+            boolean worldEffectDirty = GodsparkMod.WORLD_EFFECT_ENGINE.hasDirty();
+
+            if (savedData != null && (eventStateDirty || memoriesDirty || modifierDirty || worldEffectDirty)) {
+                if (eventStateDirty) {
+                    savedData.captureFrom(GodsparkMod.EVENT_STATE_MANAGER);
+                    GodsparkMod.EVENT_STATE_MANAGER.consumeDirty();
+                }
+                if (memoriesDirty) {
+                    savedData.captureMemoriesFrom(GodsparkMod.MEMORY_BANK);
+                }
+                if (modifierDirty) {
+                    savedData.captureModifiersFrom(GodsparkMod.PRESSURE_MODIFIER_MANAGER, server.getTickCount());
+                    GodsparkMod.PRESSURE_MODIFIER_MANAGER.consumeDirty();
+                }
+                if (worldEffectDirty) {
+                    savedData.captureWorldEffectCooldownsFrom(GodsparkMod.WORLD_EFFECT_ENGINE);
+                    GodsparkMod.WORLD_EFFECT_ENGINE.consumeDirty();
+                }
             }
 
             for (EventRecord record : transitions) {
                 GodsparkMod.LOGGER.info(
-                    "[Godspark Event] [{} → {}][{}] {}: {} (pressure={}, persistence={})",
+                    "[Godspark Event] [{} -> {}][{}] {}: {} (pressure={}, persistence={})",
                     record.isResolved() ? "ACTIVE/PERSISTENT" : "NEW/UPGRADE",
                     record.state(),
                     record.event().pressureType().getDisplayName(),
@@ -212,6 +266,20 @@ public final class GodsparkServerEvents {
             );
 
             logColonySummary();
+        }
+    }
+
+    private static void backupGodsparkSavedData(MinecraftServer server) {
+        try {
+            Path dataDir = server.getWorldPath(LevelResource.ROOT).resolve("data");
+            Path source = dataDir.resolve("godspark_data.dat");
+            if (Files.exists(source)) {
+                Path backup = dataDir.resolve("godspark_data.dat.bak");
+                Files.copy(source, backup, StandardCopyOption.REPLACE_EXISTING);
+                GodsparkMod.LOGGER.info("[Godspark SavedData] Backed up {} to {}", source.getFileName(), backup.getFileName());
+            }
+        } catch (Exception e) {
+            GodsparkMod.LOGGER.warn("[Godspark SavedData] Backup failed (non-fatal): {}", e.getMessage());
         }
     }
 

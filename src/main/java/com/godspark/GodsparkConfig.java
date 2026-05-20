@@ -18,6 +18,15 @@ public final class GodsparkConfig {
     public static final ForgeConfigSpec.IntValue SACRED_PRAYER_STONE_BIND_RADIUS;
     public static final ForgeConfigSpec.BooleanValue SACRED_PRAYER_STONE_ALLOW_UNBOUND;
 
+    public static final ForgeConfigSpec.BooleanValue WORLD_EFFECTS_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue WORLD_EFFECTS_ALLOW_DEBUG_ANSWER_COMMAND;
+    public static final ForgeConfigSpec.IntValue WORLD_EFFECT_COOLDOWN_TICKS;
+    public static final ForgeConfigSpec.IntValue WORLD_EFFECT_RESISTANCE_DURATION;
+    public static final ForgeConfigSpec.IntValue WORLD_EFFECT_CROP_PULSE_ATTEMPTS;
+    public static final ForgeConfigSpec.IntValue WORLD_EFFECT_CROP_PULSE_SUCCESS_CAP;
+    public static final ForgeConfigSpec.IntValue WORLD_EFFECT_GUARDIAN_RADIUS;
+    public static final ForgeConfigSpec.IntValue WORLD_EFFECT_GREEN_MERCY_RADIUS;
+
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
 
@@ -70,6 +79,51 @@ public final class GodsparkConfig {
             .comment("Allow Prayer Stones with no nearby colony to register as sacred anchors.",
                      "Patch 6A.3 keeps this false: unbound stones stay silent.")
             .define("prayerStoneAllowUnbound", false);
+
+        builder.pop();
+
+        builder.comment("Light World Effects — Phase 5D.2",
+                        "World effects are opt-in and disabled by default.",
+                        "When disabled, EFFECT_ELIGIBLE intents still apply pressure modifiers but no world mutation.")
+               .push("worldEffects");
+
+        WORLD_EFFECTS_ENABLED = builder
+            .comment("Enable light world effects (Guardian's Vigil resistance, Green Mercy crop pulses).",
+                     "Defaults to OFF. Turn on only after validating Phase 5D.1 in-game.")
+            .define("enabled", false);
+
+        WORLD_EFFECTS_ALLOW_DEBUG_ANSWER_COMMAND = builder
+            .comment("Allow /godspark answer to trigger world effects.",
+                     "For prototype testing only. Final gameplay should use shrine/UI interaction.",
+                     "Requires worldEffects.enabled=true.")
+            .define("allowDebugAnswerCommand", false);
+
+        WORLD_EFFECT_COOLDOWN_TICKS = builder
+            .comment("Shared cooldown in ticks between world effects per colony+dimension.",
+                     "24000 = 20 minutes. Independent of pressure modifier cooldown.")
+            .defineInRange("cooldownTicks", 24000, 6000, 72000);
+
+        WORLD_EFFECT_RESISTANCE_DURATION = builder
+            .comment("Duration of Resistance I from Guardian's Vigil in ticks.",
+                     "6000 = 5 minutes.")
+            .defineInRange("resistanceDurationTicks", 6000, 1200, 12000);
+
+        WORLD_EFFECT_CROP_PULSE_ATTEMPTS = builder
+            .comment("Max sampled positions/probes for Green Mercy.",
+                     "Not all probes find crops; applies to loaded chunks only.")
+            .defineInRange("cropPulseAttempts", 64, 8, 256);
+
+        WORLD_EFFECT_CROP_PULSE_SUCCESS_CAP = builder
+            .comment("Max crops that Green Mercy can successfully advance per pulse.")
+            .defineInRange("cropPulseSuccessCap", 8, 1, 32);
+
+        WORLD_EFFECT_GUARDIAN_RADIUS = builder
+            .comment("Radius around colony center for Guardian's Vigil guard search.")
+            .defineInRange("guardianVigilRadius", 128, 16, 256);
+
+        WORLD_EFFECT_GREEN_MERCY_RADIUS = builder
+            .comment("Radius around colony center for Green Mercy crop probing.")
+            .defineInRange("greenMercyRadius", 128, 16, 256);
 
         builder.pop();
 
